@@ -1,8 +1,8 @@
-import { View, Text, Button } from "react-native";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "./services/_firebase";
-import { getUserRole } from "./services/getUserRole";
 import { router } from "expo-router";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { Button, Text, View } from "react-native";
+import { auth } from "../services/_firebase";
+import { getUserRole } from "../services/getUserRole";
 
 export default function LoginScreen() {
 

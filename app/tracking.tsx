@@ -3,7 +3,7 @@ import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
-import { db } from "./services/_firebase";
+import { db } from "../services/_firebase";
 
 export default function TrackingScreen() {
 

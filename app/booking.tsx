@@ -1,16 +1,16 @@
+import { Picker } from "@react-native-picker/picker";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { collection, doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { collection, doc, setDoc } from "firebase/firestore";
-import { db } from "./services/_firebase";
-import { Picker } from "@react-native-picker/picker";
+import { db } from "../services/_firebase";
 
 export default function BookingScreen() {
 
