@@ -1,22 +1,58 @@
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "./_firebase";
+// // import { doc, getDoc } from "firebase/firestore";
+// // import { db } from "./firebase";
 
-export const getUserRole = async (uid: string) => {
+// // export const getUserRole = async (uid:string) => {
 
-  try {
+// //  const userDoc = await getDoc(doc(db,"users",uid));
 
-    const userRef = doc(db, "users", uid);
-    const snap = await getDoc(userRef);
+// //  if(userDoc.exists()){
+// //    return userDoc.data().role;
+// //  }
 
-    if (snap.exists()) {
-      return snap.data().role;
-    }
+// //  const driverDoc = await getDoc(doc(db,"drivers",uid));
 
-    return "user";
+// //  if(driverDoc.exists()){
+// //    return "driver";
+// //  }
 
-  } catch (error) {
-    console.log("Role fetch error", error);
-    return "user";
-  }
+// //  return "user";
+// // };
+// import { doc, getDoc } from "firebase/firestore";
+// import { db } from "./firebase";
+
+// export const getUserRole = async (uid:string) => {
+
+//   const driverDoc = await getDoc(doc(db,"drivers",uid));
+
+//   if(driverDoc.exists()){
+//     return "driver";
+//   }
+
+//   const userDoc = await getDoc(doc(db,"users",uid));
+
+//   if(userDoc.exists()){
+//     return "user";
+//   }
+
+//   return null;
+// };
+import { doc,getDoc } from "firebase/firestore";
+import { db } from "./firebase";
+
+export const getUserRole = async(uid:string)=>{
+
+const driverDoc = await getDoc(doc(db,"drivers",uid));
+
+if(driverDoc.exists()){
+ return "driver";
+}
+
+const userDoc = await getDoc(doc(db,"users",uid));
+
+if(userDoc.exists()){
+ return "user";
+}
+
+return null;
 
 };

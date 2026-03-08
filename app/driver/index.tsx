@@ -1,7 +1,7 @@
+import { collection, doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { View, Text, Button, StyleSheet, FlatList } from "react-native";
-import { collection, onSnapshot, updateDoc, doc } from "firebase/firestore";
-import { db } from "../services/_firebase";
+import { Button, FlatList, StyleSheet, Text, View } from "react-native";
+import { db } from "../../services/firebase";
 
 export default function DriverDashboard() {
 
@@ -16,13 +16,13 @@ export default function DriverDashboard() {
 
       const list: any[] = [];
 
-      snapshot.forEach((doc) => {
+      snapshot.forEach((document) => {
 
-        const data = doc.data();
+        const data = document.data();
 
         if (data.status === "Pending") {
           list.push({
-            id: doc.id,
+            id: document.id,
             ...data
           });
         }
@@ -37,7 +37,7 @@ export default function DriverDashboard() {
 
   }, []);
 
-  const acceptBooking = async (id: string) => {
+  const acceptBooking = async (id: any) => {
 
     const ref = doc(db, "bookings", id);
 
@@ -74,9 +74,7 @@ export default function DriverDashboard() {
           <View style={styles.card}>
 
             <Text>Patient: {item.patientName}</Text>
-
             <Text>Emergency: {item.emergency}</Text>
-
             <Text>Ambulance: {item.ambulanceType}</Text>
 
             <Button
