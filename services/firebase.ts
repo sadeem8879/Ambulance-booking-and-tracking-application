@@ -1,6 +1,8 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
+// @ts-ignore - getReactNativePersistence is available in React Native builds, but TypeScript doesn't recognize it
+import { getReactNativePersistence, initializeAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAT9tDlfmdCRb8Eo3LC_5-ej96CdQAdWag",
@@ -11,7 +13,15 @@ const firebaseConfig = {
   appId: "1:580969131821:web:cb632d29d1bfff63b86da4",
 };
 
+// Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-export const auth = getAuth(app);
+// Initialize Auth with AsyncStorage persistence
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
+
+// Initialize Firestore
 export const db = getFirestore(app);
+
+export default app;

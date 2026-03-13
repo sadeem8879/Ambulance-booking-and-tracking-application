@@ -1,171 +1,171 @@
-// import { useLocalSearchParams, useRouter } from "expo-router";
-// import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-// import { useEffect, useState } from "react";
-// import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-// import MapView, { Marker } from "react-native-maps";
-// import { db } from "../services/firebase";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import MapView, { Marker } from "react-native-maps";
+import { db } from "../services/firebase";
 
-// export default function TrackingScreen() {
+export default function TrackingScreen() {
 
-//   const params = useLocalSearchParams();
-//   const router = useRouter();
+  const params = useLocalSearchParams();
+  const router = useRouter();
 
-//   const bookingId = params.bookingId as string;
+  const bookingId = params.bookingId as string;
 
-//   const [bookingData, setBookingData] = useState<any>(null);
+  const [bookingData, setBookingData] = useState<any>(null);
 
-//   useEffect(() => {
+  useEffect(() => {
 
-//     if (!bookingId) return;
+    if (!bookingId) return;
 
-//     const unsubscribe = onSnapshot(
-//       doc(db, "bookings", bookingId),
-//       (docSnap) => {
-//         if (docSnap.exists()) {
-//           setBookingData(docSnap.data());
-//         }
-//       }
-//     );
+    const unsubscribe = onSnapshot(
+      doc(db, "bookings", bookingId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setBookingData(docSnap.data());
+        }
+      }
+    );
 
-//     return () => unsubscribe();
+    return () => unsubscribe();
 
-//   }, [bookingId]);
+  }, [bookingId]);
 
-//   if (!bookingData) {
-//     return (
-//       <View style={styles.center}>
-//         <Text>Loading booking...</Text>
-//       </View>
-//     );
-//   }
+  if (!bookingData) {
+    return (
+      <View style={styles.center}>
+        <Text>Loading booking...</Text>
+      </View>
+    );
+  }
 
-//   const handleCancel = async () => {
-//     await updateDoc(doc(db, "bookings", bookingId), {
-//       status: "Cancelled",
-//     });
+  const handleCancel = async () => {
+    await updateDoc(doc(db, "bookings", bookingId), {
+      status: "Cancelled",
+    });
 
-//     router.replace("/");
-//   };
+    router.replace("/");
+  };
 
-//   return (
-//     <View style={styles.container}>
+  return (
+    <View style={styles.container}>
 
-//       <MapView
-//         style={styles.map}
-//         region={{
-//           latitude: bookingData.userLat,
-//           longitude: bookingData.userLng,
-//           latitudeDelta: 0.01,
-//           longitudeDelta: 0.01,
-//         }}
-//       >
+      <MapView
+        style={styles.map}
+        region={{
+          latitude: bookingData.userLat,
+          longitude: bookingData.userLng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+      >
 
-//         {/* User Marker */}
+        {/* User Marker */}
 
-//         <Marker
-//           coordinate={{
-//             latitude: bookingData.userLat,
-//             longitude: bookingData.userLng,
-//           }}
-//           title="Patient Location"
-//           pinColor="blue"
-//         />
+        <Marker
+          coordinate={{
+            latitude: bookingData.userLat,
+            longitude: bookingData.userLng,
+          }}
+          title="Patient Location"
+          pinColor="blue"
+        />
 
-//         {/* Ambulance Marker (when driver assigned) */}
+        {/* Ambulance Marker (when driver assigned) */}
 
-//         {bookingData.driverLat && (
-//           <Marker
-//             coordinate={{
-//               latitude: bookingData.driverLat,
-//               longitude: bookingData.driverLng,
-//             }}
-//             title="Ambulance"
-//             pinColor="red"
-//           />
-//         )}
+        {bookingData.driverLat && (
+          <Marker
+            coordinate={{
+              latitude: bookingData.driverLat,
+              longitude: bookingData.driverLng,
+            }}
+            title="Ambulance"
+            pinColor="red"
+          />
+        )}
 
-//       </MapView>
+      </MapView>
 
-//       <View style={styles.infoBox}>
+      <View style={styles.infoBox}>
 
-//         <Text style={styles.status}>
-//           Status: {bookingData.status}
-//         </Text>
+        <Text style={styles.status}>
+          Status: {bookingData.status}
+        </Text>
 
-//         <Text>Patient: {bookingData.patientName}</Text>
+        <Text>Patient: {bookingData.patientName}</Text>
 
-//         <Text>Emergency: {bookingData.emergency}</Text>
+        <Text>Emergency: {bookingData.emergency}</Text>
 
-//         <Text>Ambulance: {bookingData.ambulanceType}</Text>
+        <Text>Ambulance: {bookingData.ambulanceType}</Text>
 
-//         {bookingData.status !== "Cancelled" && (
-//           <TouchableOpacity
-//             style={styles.cancelButton}
-//             onPress={handleCancel}
-//           >
-//             <Text style={styles.cancelText}>
-//               Cancel Booking
-//             </Text>
-//           </TouchableOpacity>
-//         )}
+        {bookingData.status !== "Cancelled" && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={handleCancel}
+          >
+            <Text style={styles.cancelText}>
+              Cancel Booking
+            </Text>
+          </TouchableOpacity>
+        )}
 
-//       </View>
+      </View>
 
-//     </View>
-//   );
-//   {bookingData.driverLat && (
+    </View>
+  );
+  {bookingData.driverLat && (
 
-//   <Marker
-//     coordinate={{
-//       latitude: bookingData.driverLat,
-//       longitude: bookingData.driverLng,
-//     }}
-//     title="Ambulance"
-//     pinColor="red"
-//   />
+  <Marker
+    coordinate={{
+      latitude: bookingData.driverLat,
+      longitude: bookingData.driverLng,
+    }}
+    title="Ambulance"
+    pinColor="red"
+  />
 
-// )}
+)}
 
-// }
+}
 
-// const styles = StyleSheet.create({
+const styles = StyleSheet.create({
 
-//   container: {
-//     flex: 1,
-//   },
+  container: {
+    flex: 1,
+  },
 
-//   map: {
-//     flex: 1,
-//   },
+  map: {
+    flex: 1,
+  },
 
-//   infoBox: {
-//     padding: 20,
-//     backgroundColor: "#fff",
-//   },
+  infoBox: {
+    padding: 20,
+    backgroundColor: "#fff",
+  },
 
-//   status: {
-//     fontSize: 18,
-//     fontWeight: "bold",
-//     marginBottom: 10,
-//   },
+  status: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
 
-//   cancelButton: {
-//     backgroundColor: "#d32f2f",
-//     padding: 12,
-//     borderRadius: 8,
-//     marginTop: 15,
-//     alignItems: "center",
-//   },
+  cancelButton: {
+    backgroundColor: "#d32f2f",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 15,
+    alignItems: "center",
+  },
 
-//   cancelText: {
-//     color: "white",
-//     fontWeight: "bold",
-//   },
+  cancelText: {
+    color: "white",
+    fontWeight: "bold",
+  },
 
-//   center: {
-//     flex: 1,
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-// });
+});
