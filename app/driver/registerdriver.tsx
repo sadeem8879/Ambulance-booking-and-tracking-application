@@ -1,153 +1,208 @@
-import React,{ useState } from "react";
+import React, { useState } from "react";
 import {
- View,
- Text,
- TextInput,
- StyleSheet,
- TouchableOpacity,
- Alert
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth,db } from "../../services/firebase";
-import { doc,setDoc } from "firebase/firestore";
+import { auth, db } from "../../services/firebase";
+import { doc, setDoc } from "firebase/firestore";
 import { router } from "expo-router";
 
-export default function RegisterDriver(){
+export default function RegisterDriver() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [ambulance, setAmbulance] = useState("");
+  const [license, setLicense] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const [name,setName] = useState("");
-const [email,setEmail] = useState("");
-const [phone,setPhone] = useState("");
-const [ambulance,setAmbulance] = useState("");
-const [license,setLicense] = useState("");
-const [password,setPassword] = useState("");
+  // ==============================
+  // REGISTRATION FUNCTION
+  // ==============================
+  const register = async () => {
+    // Validation
+    if (!name || !email || !phone || !ambulance || !license || !password) {
+      Alert.alert("All fields are required");
+      return;
+    }
 
-const register = async()=>{
+    setLoading(true);
 
-try{
+    try {
+      // 1️⃣ Create Firebase Auth user
+      const res = await createUserWithEmailAndPassword(auth, email, password);
 
-const res = await createUserWithEmailAndPassword(auth,email,password);
+      // 2️⃣ Save driver profile in Firestore
+      await setDoc(doc(db, "drivers", res.user.uid), {
+        name,
+        email,
+        phone,
+        ambulanceNumber: ambulance,
+        licenseNumber: license,
 
-await setDoc(doc(db,"drivers",res.user.uid),{
+        // 🚨 Core fields for Uber-style system
+        approved: false,          // admin approval pending
+        online: false,            // driver offline initially
+        currentTripId: null,      // no trips assigned yet
+        location: { latitude: 0, longitude: 0 }, // initial GPS setup
+        role: "driver",
+        createdAt: Date.now(),
+      });
 
-name,
-email,
-phone,
-ambulanceNumber:ambulance,
-licenseNumber:license,
+      Alert.alert(
+        "Registration Submitted",
+        "Your account is under admin review. Wait for approval."
+      );
 
-approved:false,
-active:false,
+      router.replace("/login");
+    } catch (e: any) {
+      console.log("Driver registration error:", e);
+      Alert.alert("Registration Error", e.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-lat:0,
-lng:0,
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>🚑 Driver Registration</Text>
+        <Text style={styles.subtitle}>
+          Join our ambulance network and start receiving requests!
+        </Text>
 
-role:"driver",
-createdAt:Date.now()
+        <TextInput
+          placeholder="Full Name"
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+        />
 
-});
+        <TextInput
+          placeholder="Email"
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
 
-Alert.alert("Registration submitted","Wait for admin approval");
+        <TextInput
+          placeholder="Phone Number"
+          style={styles.input}
+          value={phone}
+          onChangeText={setPhone}
+          keyboardType="phone-pad"
+        />
 
-router.replace("/login");
+        <TextInput
+          placeholder="Ambulance Number"
+          style={styles.input}
+          value={ambulance}
+          onChangeText={setAmbulance}
+        />
 
-}catch(e:any){
-Alert.alert(e.message)
+        <TextInput
+          placeholder="License Number"
+          style={styles.input}
+          value={license}
+          onChangeText={setLicense}
+        />
+
+        <TextInput
+          placeholder="Password"
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.7 }]}
+          onPress={register}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Submitting..." : "Register"}
+          </Text>
+        </TouchableOpacity>
+
+        <Text style={styles.note}>
+          After registration, admin approval is required. Once approved, you
+          can go online, receive requests, and start trips.
+        </Text>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
 }
 
-};
-
-return(
-
-<View style={styles.container}>
-
-<Text style={styles.title}>🚑 Driver Registration</Text>
-
-<TextInput
-placeholder="Full Name"
-style={styles.input}
-onChangeText={setName}
-/>
-
-<TextInput
-placeholder="Email"
-style={styles.input}
-onChangeText={setEmail}
-/>
-
-<TextInput
-placeholder="Phone"
-style={styles.input}
-keyboardType="phone-pad"
-onChangeText={setPhone}
-/>
-
-<TextInput
-placeholder="Ambulance Number"
-style={styles.input}
-onChangeText={setAmbulance}
-/>
-
-<TextInput
-placeholder="License Number"
-style={styles.input}
-onChangeText={setLicense}
-/>
-
-<TextInput
-placeholder="Password"
-style={styles.input}
-secureTextEntry
-onChangeText={setPassword}
-/>
-
-<TouchableOpacity style={styles.button} onPress={register}>
-<Text style={styles.buttonText}>Register</Text>
-</TouchableOpacity>
-
-</View>
-
-);
-
-}
-
+// ==============================
+// STYLES
+// ==============================
 const styles = StyleSheet.create({
-
-container:{
- flex:1,
- backgroundColor:"#f6f8fb",
- justifyContent:"center",
- padding:25
-},
-
-title:{
- fontSize:28,
- fontWeight:"bold",
- textAlign:"center",
- marginBottom:30
-},
-
-input:{
- backgroundColor:"#fff",
- padding:14,
- borderRadius:10,
- marginBottom:12,
- borderWidth:1,
- borderColor:"#eee"
-},
-
-button:{
- backgroundColor:"#e53935",
- padding:16,
- borderRadius:10,
- alignItems:"center",
- marginTop:10
-},
-
-buttonText:{
- color:"#fff",
- fontWeight:"bold",
- fontSize:16
-}
-
+  container: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f6f8fb",
+    padding: 25,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#e53935",
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 25,
+  },
+  input: {
+    width: "100%",
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    fontSize: 16,
+  },
+  button: {
+    width: "100%",
+    backgroundColor: "#e53935",
+    padding: 18,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+  note: {
+    textAlign: "center",
+    marginTop: 15,
+    fontSize: 14,
+    color: "#777",
+    paddingHorizontal: 10,
+  },
 });

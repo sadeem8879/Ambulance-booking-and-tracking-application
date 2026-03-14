@@ -1,128 +1,184 @@
-// // import { View,Text,Switch } from "react-native";
-// // import { useState } from "react";
-// // import { auth,db } from "../../services/firebase";
-// // import { doc,updateDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+    Alert,
+    FlatList,
+    StyleSheet,
+    Switch,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { auth } from "../../services/firebase";
+import { acceptBooking, goOffline, goOnline, subscribeNearbyBookings } from "./driverservice";
+import { Booking } from "./driverType";
 
-// // export default function Dashboard(){
+export default function DriverDashboard() {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [online, setOnline] = useState(false);
 
-// // const [online,setOnline]=useState(false);
+  // ==============================
+  // FETCH LIVE BOOKINGS
+  // ==============================
+  useEffect(() => {
+    const unsubscribe = subscribeNearbyBookings((bookingsList) => {
+      setBookings(bookingsList);
+    });
 
-// // const toggleOnline=async(value:boolean)=>{
+    return unsubscribe;
+  }, []);
 
-// // setOnline(value);
+  // ==============================
+  // TOGGLE ONLINE / OFFLINE
+  // ==============================
+  const toggleOnline = async (value: boolean) => {
+    if (!auth.currentUser) return;
 
-// // await updateDoc(doc(db,"drivers",auth.currentUser?.uid),{
-// //  isOnline:value
-// // });
+    try {
+      if (value) {
+        await goOnline(auth.currentUser.uid);
+        setOnline(true);
+        Alert.alert("Status", "You are now ONLINE");
+      } else {
+        await goOffline(auth.currentUser.uid);
+        setOnline(false);
+        Alert.alert("Status", "You are now OFFLINE");
+      }
+    } catch (error) {
+      console.error("Toggle online error:", error);
+      Alert.alert("Error", "Failed to update status");
+    }
+  };
 
-// // };
+  // ==============================
+  // ACCEPT BOOKING
+  // ==============================
+  const handleAcceptBooking = async (booking: Booking) => {
+    if (!auth.currentUser) return;
 
-// // return(
+    try {
+      await acceptBooking(auth.currentUser.uid, booking);
+      Alert.alert("Booking Accepted", `You accepted ${booking.patientName}'s request`);
+    } catch (error) {
+      console.error("Accept booking error:", error);
+      Alert.alert("Error", "Failed to accept booking");
+    }
+  };
 
-// // <View style={{flex:1,justifyContent:"center",alignItems:"center"}}>
+  // ==============================
+  // RENDER
+  // ==============================
+  return (
+    <View style={styles.container}>
+      {/* Online Toggle */}
+      <View style={styles.statusBox}>
+        <Text style={styles.statusText}>
+          {online ? "🟢 Online" : "🔴 Offline"}
+        </Text>
+        <Switch value={online} onValueChange={toggleOnline} />
+      </View>
 
-// // <Text style={{fontSize:24}}>Driver Dashboard</Text>
+      {/* Bookings List */}
+      <Text style={styles.header}>Nearby Ambulance Requests</Text>
+      {bookings.length === 0 && (
+        <Text style={styles.noBookings}>No requests at the moment</Text>
+      )}
 
-// // <Text>Go Online</Text>
-
-// // <Switch value={online} onValueChange={toggleOnline}/>
-
-// // </View>
-
-// // )
-
-// // }
-// import { View,Text } from "react-native";
-
-// export default function DriverDashboard(){
-
-// return(
-
-// <View style={{flex:1,justifyContent:"center",alignItems:"center"}}>
-
-// <Text style={{fontSize:22}}>
-// Driver Dashboard
-// </Text>
-
-// <Text>
-// You will receive ambulance requests here
-// </Text>
-
-// </View>
-
-// )
-
-// }
-import { useEffect,useState } from "react";
-import { View,Text,FlatList,TouchableOpacity } from "react-native";
-import { collection,query,where,onSnapshot,doc,updateDoc } from "firebase/firestore";
-import { db,auth } from "../../services/firebase";
-
-export default function DriverDashboard(){
-
-const[bookings,setBookings]=useState<any[]>([]);
-
-useEffect(()=>{
-
-const q=query(
-collection(db,"bookings"),
-where("status","==","searching")
-);
-
-const unsub=onSnapshot(q,(snap)=>{
-
-setBookings(snap.docs.map(doc=>({
-id:doc.id,
-...doc.data()
-})));
-
-});
-
-return()=>unsub();
-
-},[]);
-
-
-const acceptBooking=async(item:any)=>{
-
-await updateDoc(doc(db,"bookings",item.id),{
-
-status:"accepted",
-driverId:auth.currentUser?.uid,
-driverName:"Driver",
-driverPhone:"9876543210"
-
-});
-
-};
-
-return(
-
-<View style={{flex:1,padding:20}}>
-
-<FlatList
-data={bookings}
-keyExtractor={(item)=>item.id}
-
-renderItem={({item})=>(
-
-<View style={{marginBottom:20}}>
-
-<Text>Patient: {item.patientName}</Text>
-<Text>Emergency: {item.emergency}</Text>
-
-<TouchableOpacity onPress={()=>acceptBooking(item)}>
-<Text>Accept Request</Text>
-</TouchableOpacity>
-
-</View>
-
-)}
-
-/>
-
-</View>
-
-);
-
+      <FlatList
+        data={bookings}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 50 }}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <Text style={styles.patient}>Patient: {item.patientName}</Text>
+            <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
+            <Text style={styles.location}>
+              Location: {item.pickupLocation.latitude.toFixed(3)}, {item.pickupLocation.longitude.toFixed(3)}
+            </Text>
+            <TouchableOpacity
+              style={styles.acceptBtn}
+              onPress={() => handleAcceptBooking(item)}
+            >
+              <Text style={styles.btnText}>Accept Request</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+    </View>
+  );
 }
+
+// ==============================
+// STYLES
+// ==============================
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#f5f6fa",
+  },
+  statusBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  statusText: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#e53935",
+  },
+  noBookings: {
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 16,
+    color: "#555",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  patient: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 5,
+  },
+  emergency: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  location: {
+    fontSize: 14,
+    marginBottom: 10,
+    color: "#555",
+  },
+  acceptBtn: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  btnText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+});
