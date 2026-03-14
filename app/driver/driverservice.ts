@@ -1,8 +1,8 @@
 // 📁 app/driver/driverservice.ts
 
-import { addDoc, collection, doc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { auth, db } from "../../services/firebase";
-import { Booking, DriverNotification, GeoLocation } from "./driverType";
+import { Booking, DriverNotification, GeoLocation, Trip } from "./driverType";
 import { startDriverTracking, stopDriverTracking } from "./tracklocation";
 
 // ==============================
@@ -10,8 +10,17 @@ import { startDriverTracking, stopDriverTracking } from "./tracklocation";
 // ==============================
 export const goOnline = async (driverId: string): Promise<void> => {
   try {
+    const driverRef = doc(db, "drivers", driverId);
+    const driverSnap = await getDoc(driverRef);
+    const driverData = driverSnap.data();
+
+    // Ensure driver is approved by admin before going online
+    if (!driverData?.approved) {
+      throw new Error("Driver approval is required to go online.");
+    }
+
     // Update Firestore status
-    await updateDoc(doc(db, "drivers", driverId), {
+    await updateDoc(driverRef, {
       online: true,
       lastOnline: Date.now(),
     });
@@ -22,6 +31,7 @@ export const goOnline = async (driverId: string): Promise<void> => {
     console.log("Driver is now ONLINE");
   } catch (err) {
     console.log("Go online error:", err);
+    throw err;
   }
 };
 
@@ -47,10 +57,11 @@ export const goOffline = async (driverId: string): Promise<void> => {
 };
 
 // ==============================
-// GET NEARBY BOOKINGS (Realtime)
+// GET NEARBY BOOKINGS (Realtime) - With Distance
 // ==============================
 export const subscribeNearbyBookings = (
-  callback: (bookings: Booking[]) => void
+  callback: (bookings: Booking[]) => void,
+  driverLocation?: GeoLocation
 ) => {
   const q = query(
     collection(db, "bookings"),
@@ -63,6 +74,15 @@ export const subscribeNearbyBookings = (
       ...doc.data(),
     })) as Booking[];
 
+    // If driver location provided, sort by distance
+    if (driverLocation) {
+      bookings.sort((a, b) => {
+        const distA = calculateDistance(driverLocation, a.pickupLocation);
+        const distB = calculateDistance(driverLocation, b.pickupLocation);
+        return distA - distB;
+      });
+    }
+
     callback(bookings);
   });
 
@@ -70,39 +90,149 @@ export const subscribeNearbyBookings = (
 };
 
 // ==============================
+// CALCULATE DISTANCE (Haversine)
+// ==============================
+export const calculateDistance = (loc1: GeoLocation, loc2: GeoLocation): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (loc2.latitude - loc1.latitude) * Math.PI / 180;
+  const dLon = (loc2.longitude - loc1.longitude) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(loc1.latitude * Math.PI / 180) * Math.cos(loc2.latitude * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// ==============================
+// CALCULATE ETA & DISTANCE VIA GOOGLE DIRECTIONS
+// ==============================
+export const getDirections = async (
+  origin: GeoLocation,
+  destination: GeoLocation
+): Promise<{ distance: number; eta: number; polyline: GeoLocation[] } | null> => {
+  try {
+    const apiKey = "YOUR_GOOGLE_MAPS_API_KEY"; // Replace with actual API key
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=${apiKey}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === "OK" && data.routes.length > 0) {
+      const route = data.routes[0];
+      const leg = route.legs[0];
+
+      const distance = leg.distance.value / 1000; // km
+      const eta = Math.ceil(leg.duration.value / 60); // minutes
+
+      // Decode polyline
+      const polyline = decodePolyline(route.overview_polyline.points);
+
+      return { distance, eta, polyline };
+    }
+  } catch (error) {
+    console.error("Directions error:", error);
+  }
+  return null;
+};
+
+// ==============================
+// DECODE GOOGLE POLYLINE
+// ==============================
+const decodePolyline = (encoded: string): GeoLocation[] => {
+  const points: GeoLocation[] = [];
+  let index = 0, lat = 0, lng = 0;
+
+  while (index < encoded.length) {
+    let b, shift = 0, result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+    lng += dlng;
+
+    points.push({
+      latitude: lat / 1e5,
+      longitude: lng / 1e5,
+    });
+  }
+  return points;
+};
+
+// ==============================
 // ACCEPT BOOKING
 // ==============================
-export const acceptBooking = async (driverId: string, booking: Booking) => {
+export const acceptBooking = async (
+  driverId: string,
+  booking: Booking,
+  driverLocation?: GeoLocation
+) => {
   try {
+    const driverPhone = auth.currentUser?.phoneNumber || "N/A";
+
+    // Mark booking as accepted
     await updateDoc(doc(db, "bookings", booking.id), {
       status: "accepted",
-      driverId: driverId,
-      driverName: "Driver", // Fetch dynamically if needed
-      driverPhone: auth.currentUser?.phoneNumber || "N/A",
+      driverId,
+      driverName: "Driver", // TODO: use actual driver name from profile
+      driverPhone,
     });
 
-    // Optionally create a trip
+    // Create a trip record
     const tripRef = await addDoc(collection(db, "trips"), {
       bookingId: booking.id,
       driverId,
       driverName: "Driver",
-      driverPhone: auth.currentUser?.phoneNumber || "N/A",
+      driverPhone,
       patientName: booking.patientName,
       pickupLocation: booking.pickupLocation,
+      dropLocation: booking.dropLocation || null,
       status: "accepted",
       startedAt: null,
       completedAt: null,
       routePolyline: [],
+      distance: null,
+      eta: null,
     });
 
-    // Update driver with currentTripId
+    // Set current trip id on driver profile
     await updateDoc(doc(db, "drivers", driverId), {
       currentTripId: tripRef.id,
     });
 
+    // If we have driver location, compute route to pickup
+    if (driverLocation) {
+      const directions = await getDirections(driverLocation, booking.pickupLocation);
+      if (directions) {
+        await updateDoc(tripRef, {
+          routePolyline: directions.polyline,
+          distance: directions.distance,
+          eta: directions.eta,
+        });
+
+        await updateDoc(doc(db, "bookings", booking.id), {
+          distance: directions.distance,
+          eta: directions.eta,
+        });
+      }
+    }
+
     console.log("Booking accepted & trip created:", tripRef.id);
   } catch (err) {
     console.log("Accept booking error:", err);
+    throw err;
   }
 };
 
@@ -111,10 +241,40 @@ export const acceptBooking = async (driverId: string, booking: Booking) => {
 // ==============================
 export const startTrip = async (driverId: string, tripId: string) => {
   try {
-    await updateDoc(doc(db, "trips", tripId), {
-      status: "in-progress",
-      startedAt: Date.now(),
-    });
+    // Get trip data
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+    if (!tripSnap.exists()) return;
+
+    const trip = { id: tripSnap.id, ...tripSnap.data() } as Trip;
+
+    // Get directions
+    const directions = await getDirections(trip.pickupLocation, trip.dropLocation || trip.pickupLocation);
+    if (directions) {
+      await updateDoc(tripRef, {
+        status: "in-progress",
+        startedAt: Date.now(),
+        routePolyline: directions.polyline,
+        distance: directions.distance,
+        eta: directions.eta,
+      });
+
+      // Update booking
+      await updateDoc(doc(db, "bookings", trip.bookingId), {
+        status: "in-progress",
+        distance: directions.distance,
+        eta: directions.eta,
+      });
+    } else {
+      // Fallback without directions
+      await updateDoc(tripRef, {
+        status: "in-progress",
+        startedAt: Date.now(),
+      });
+      await updateDoc(doc(db, "bookings", trip.bookingId), {
+        status: "in-progress",
+      });
+    }
 
     console.log("Trip started:", tripId);
   } catch (err) {
@@ -162,6 +322,24 @@ export const updateBookingETA = async (
 };
 
 // ==============================
+// UPDATE TRIP ETA & DISTANCE
+// ==============================
+export const updateTripETA = async (
+  tripId: string,
+  distanceKm: number,
+  etaMinutes: number
+) => {
+  try {
+    await updateDoc(doc(db, "trips", tripId), {
+      distance: distanceKm,
+      eta: etaMinutes,
+    });
+  } catch (err) {
+    console.log("Update trip ETA error:", err);
+  }
+};
+
+// ==============================
 // SEND NOTIFICATION
 // ==============================
 export const sendDriverNotification = async (
@@ -185,7 +363,7 @@ export const sendDriverNotification = async (
 };
 
 // ==============================
-// AUTO ACCEPT NEAREST REQUEST (Optional)
+// AUTO ACCEPT NEAREST REQUEST
 // ==============================
 export const autoAcceptNearestBooking = async (
   driverId: string,
@@ -197,15 +375,30 @@ export const autoAcceptNearestBooking = async (
   );
 
   const snap = await getDocs(q);
-  if (snap.empty) return;
+  if (snap.empty) return null;
 
-  const bookingDoc = snap.docs[0]; // Take the first available booking (not truly nearest)
-  const booking = {
-    id: bookingDoc.id,
-    ...bookingDoc.data(),
-  } as Booking;
+  const bookings: Booking[] = snap.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  })) as Booking[];
 
-  // Accept booking automatically
-  await acceptBooking(driverId, booking);
-  console.log("Auto-accepted nearest booking:", booking.id);
+  // Find nearest booking
+  let nearestBooking: Booking | null = null;
+  let minDistance = Infinity;
+
+  for (const booking of bookings) {
+    const distance = calculateDistance(driverLocation, booking.pickupLocation);
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestBooking = booking;
+    }
+  }
+
+  if (nearestBooking) {
+    await acceptBooking(driverId, nearestBooking);
+    console.log("Auto-accepted nearest booking:", nearestBooking.id);
+    return nearestBooking;
+  }
+
+  return null;
 };

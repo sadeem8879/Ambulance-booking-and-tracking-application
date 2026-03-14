@@ -1,103 +1,96 @@
-// // import {
-// // View,
-// // Text,
-// // StyleSheet,
-// // ActivityIndicator,
-// // SafeAreaView
-// // } from "react-native";
+// 📁 app/driver/tracklocation.ts
+// GPS Tracking Service for Drivers
 
-// // import MapView,{ Marker, Polyline } from "react-native-maps";
-// // import { useEffect,useState } from "react";
+import * as Location from "expo-location";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../services/firebase";
+import { GeoLocation } from "./driverType";
 
-// // import { doc,onSnapshot } from "firebase/firestore";
-// // import { db } from "../../services/firebase";
+let locationSubscription: Location.LocationSubscription | null = null;
 
-// // import { useLocalSearchParams } from "expo-router";
+// ==============================
+// REQUEST LOCATION PERMISSIONS
+// ==============================
+export const requestLocationPermission = async (): Promise<boolean> => {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== "granted") {
+    console.log("Location permission denied");
+    return false;
+  }
+  return true;
+};
 
+// ==============================
+// START DRIVER TRACKING
+// ==============================
+export const startDriverTracking = async (driverId: string): Promise<void> => {
+  try {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) return;
 
-// // export default function Tracking(){
+    // Start watching position
+    locationSubscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 5000, // Update every 5 seconds
+        distanceInterval: 10, // Or every 10 meters
+      },
+      async (location) => {
+        const geoLocation: GeoLocation = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          timestamp: Date.now(),
+        };
 
-// // const { id } = useLocalSearchParams();
+        // Update Firestore with driver location
+        await updateDoc(doc(db, "drivers", driverId), {
+          location: geoLocation,
+          lastLocationUpdate: Date.now(),
+        });
 
-// // const [driverLocation,setDriverLocation] = useState<any>(null);
-// // const [userLocation,setUserLocation] = useState<any>(null);
-// // const [status,setStatus] = useState("");
-// // const [distance,setDistance] = useState(0);
-// // const [eta,setEta] = useState(0);
-// // const [loading,setLoading] = useState(true);
+        console.log("Driver location updated:", geoLocation);
+      }
+    );
 
+    console.log("Driver tracking started");
+  } catch (error) {
+    console.error("Start tracking error:", error);
+  }
+};
 
+// ==============================
+// STOP DRIVER TRACKING
+// ==============================
+export const stopDriverTracking = (): void => {
+  if (locationSubscription) {
+    locationSubscription.remove();
+    locationSubscription = null;
+    console.log("Driver tracking stopped");
+  }
+};
 
-// // // ================================
-// // // DISTANCE CALCULATION
-// // // ================================
+// ==============================
+// GET CURRENT LOCATION (One-time)
+// ==============================
+export const getCurrentLocation = async (): Promise<GeoLocation | null> => {
+  try {
+    const hasPermission = await requestLocationPermission();
+    if (!hasPermission) return null;
 
-// // const calculateDistance = (
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
 
-// // lat1:number,
-// // lon1:number,
-// // lat2:number,
-// // lon2:number
-
-// // )=>{
-
-// // const R = 6371;
-
-// // const dLat = (lat2-lat1) * Math.PI/180;
-// // const dLon = (lon2-lon1) * Math.PI/180;
-
-// // const a =
-// // Math.sin(dLat/2)*Math.sin(dLat/2) +
-// // Math.cos(lat1*Math.PI/180) *
-// // Math.cos(lat2*Math.PI/180) *
-// // Math.sin(dLon/2)*Math.sin(dLon/2);
-
-// // const c = 2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-
-// // return R*c;
-
-// // };
-
-
-
-// // // ================================
-// // // FIRESTORE REALTIME LISTENER
-// // // ================================
-
-// // useEffect(()=>{
-
-// // if(!id) return;
-
-// // const unsubscribe = onSnapshot(
-
-// // doc(db,"bookings",String(id)),
-
-// // (snapshot)=>{
-
-// // const data:any = snapshot.data();
-
-// // if(!data) return;
-
-
-// // // USER LOCATION
-// // setUserLocation({
-
-// // latitude:data.latitude,
-// // longitude:data.longitude
-
-// // });
-
-
-// // // DRIVER LOCATION
-// // if(data.driverLocation){
-
-// // setDriverLocation(data.driverLocation);
-
-// // }
-
-
-// // // STATUS
-// // setStatus(data.status);
+    return {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      timestamp: Date.now(),
+    };
+  } catch (error) {
+    console.error("Get current location error:", error);
+    return null;
+  }
+};
 
 
 // // // DISTANCE + ETA
@@ -693,16 +686,26 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
-  View,
+  View
 } from "react-native";
-import MapView, { Marker, Polyline } from "react-native-maps";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
-import { db } from "../../services/firebase";
-import * as Location from "expo-location";
+
+// Conditionally import react-native-maps only on native platforms
+let MapView: any = null;
+let Marker: any = null;
+let Polyline: any = null;
+if (Platform.OS !== 'web') {
+  const maps = require('react-native-maps');
+  MapView = maps.MapView;
+  Marker = maps.Marker;
+  Polyline = maps.Polyline;
+}
+
 import { useLocalSearchParams } from "expo-router";
+import { onSnapshot } from "firebase/firestore";
 
 type LocationType = {
   latitude: number;
@@ -711,7 +714,7 @@ type LocationType = {
 
 export default function Tracking() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const mapRef = useRef<MapView | null>(null);
+  const mapRef = useRef<any>(null);
 
   const [driverLocation, setDriverLocation] = useState<LocationType | null>(
     null
@@ -816,27 +819,33 @@ export default function Tracking() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={{
-          latitude: userLocation.latitude,
-          longitude: userLocation.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        }}
-      >
-        {/* USER MARKER */}
-        <Marker coordinate={userLocation} title="Your Location" pinColor="blue" />
+      {MapView ? (
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          }}
+        >
+          {/* USER MARKER */}
+          <Marker coordinate={userLocation} title="Your Location" pinColor="blue" />
 
-        {/* DRIVER MARKER */}
-        {driverLocation && (
-          <Marker coordinate={driverLocation} title="Ambulance" pinColor="red" />
-        )}
+          {/* DRIVER MARKER */}
+          {driverLocation && (
+            <Marker coordinate={driverLocation} title="Ambulance" pinColor="red" />
+          )}
 
-        {/* ROUTE POLYLINE */}
-        {driverLocation && <Polyline coordinates={[driverLocation, userLocation]} strokeWidth={5} strokeColor="#e53935" />}
-      </MapView>
+          {/* ROUTE POLYLINE */}
+          {driverLocation && <Polyline coordinates={[driverLocation, userLocation]} strokeWidth={5} strokeColor="#e53935" />}
+        </MapView>
+      ) : (
+        <View style={styles.map}>
+          <Text>Map not available on web</Text>
+        </View>
+      )}
 
       {/* INFO PANEL */}
       <View style={styles.infoBox}>
@@ -892,42 +901,3 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
-
-// ==============================
-// DRIVER TRACKING FUNCTIONS
-// ==============================
-let locationSubscription: Location.LocationSubscription | null = null;
-
-export const startDriverTracking = async (driverId: string) => {
-  try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      console.log("Location permission denied");
-      return;
-    }
-
-    locationSubscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 5000, // 5 seconds
-        distanceInterval: 10, // 10 meters
-      },
-      async (location) => {
-        const { latitude, longitude } = location.coords;
-        await updateDoc(doc(db, "drivers", driverId), {
-          driverLocation: { latitude, longitude },
-          lastLocationUpdate: Date.now(),
-        });
-      }
-    );
-  } catch (error) {
-    console.log("Error starting driver tracking:", error);
-  }
-};
-
-export const stopDriverTracking = () => {
-  if (locationSubscription) {
-    locationSubscription.remove();
-    locationSubscription = null;
-  }
-};

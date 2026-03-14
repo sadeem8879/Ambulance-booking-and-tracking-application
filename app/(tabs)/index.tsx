@@ -55,7 +55,7 @@ export default function HomeScreen() {
     }
 
     router.push({
-      pathname: "/booking",
+      pathname: "./booking",
       params: {
         lat: location.latitude,
         lng: location.longitude,

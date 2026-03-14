@@ -1,5 +1,7 @@
 // 📁 app/driver/drivertypes.ts
 
+import { Timestamp } from "firebase/firestore";
+
 // ==============================
 // DRIVER PROFILE
 // ==============================
@@ -47,7 +49,7 @@ export interface Booking {
   driverPhone?: string;
   distance?: number; // km
   eta?: number; // minutes
-  requestedAt: number; // timestamp
+  requestedAt: Timestamp; // timestamp
   startedAt?: number;
   completedAt?: number;
 }
