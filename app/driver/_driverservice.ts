@@ -2,7 +2,7 @@
 
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { auth, db } from "../../services/firebase";
-import { Booking, DriverNotification, GeoLocation, Trip } from "./driverType";
+import { Booking, DriverNotification, GeoLocation, Trip } from "./_driverType";
 import { startDriverTracking, stopDriverTracking } from "./tracklocation";
 
 // ==============================
@@ -69,10 +69,16 @@ export const subscribeNearbyBookings = (
   );
 
   const unsubscribe = onSnapshot(q, (snap) => {
-    const bookings: Booking[] = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Booking[];
+    const bookings: Booking[] = snap.docs
+      .map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((b) =>
+        b.pickupLocation &&
+        typeof b.pickupLocation.latitude === "number" &&
+        typeof b.pickupLocation.longitude === "number"
+      ) as Booking[];
 
     // If driver location provided, sort by distance
     if (driverLocation) {

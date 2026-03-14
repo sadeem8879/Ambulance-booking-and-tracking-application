@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { auth, db } from "../../services/firebase";
-import { markNotificationAsRead, subscribeToNotifications } from "../services/notifications";
+import { markNotificationAsRead, subscribeToNotifications } from "../services/_notifications";
 import {
     acceptBooking,
     calculateDistance,
@@ -25,8 +25,8 @@ import {
     subscribeNearbyBookings,
     updateBookingETA,
     updateTripETA,
-} from "./driverservice";
-import { Booking, Driver, DriverNotification, GeoLocation, Trip } from "./driverType";
+} from "./_driverservice";
+import { Booking, Driver, DriverNotification, GeoLocation, Trip } from "./_driverType";
 
 export default function DriverDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -395,21 +395,32 @@ export default function DriverDashboard() {
         data={bookings}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 50 }}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.patient}>Patient: {item.patientName}</Text>
-            <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
-            <Text style={styles.location}>
-              Location: {item.pickupLocation.latitude.toFixed(3)}, {item.pickupLocation.longitude.toFixed(3)}
-            </Text>
-            <TouchableOpacity
-              style={styles.acceptBtn}
-              onPress={() => handleAcceptBooking(item)}
-            >
-              <Text style={styles.btnText}>Accept Request</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const hasLocation =
+            item.pickupLocation &&
+            typeof item.pickupLocation.latitude === "number" &&
+            typeof item.pickupLocation.longitude === "number";
+
+          return (
+            <View style={styles.card}>
+              <Text style={styles.patient}>Patient: {item.patientName}</Text>
+              <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
+              <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
+              <Text style={styles.location}>
+                Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
+              </Text>
+              <TouchableOpacity
+                style={styles.acceptBtn}
+                onPress={() => handleAcceptBooking(item)}
+                disabled={!hasLocation}
+              >
+                <Text style={styles.btnText}>
+                  {hasLocation ? "Accept Request" : "Invalid request"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
       />
     </View>
   );
@@ -586,6 +597,11 @@ const styles = StyleSheet.create({
   emergency: {
     fontSize: 16,
     marginBottom: 5,
+  },
+  phone: {
+    fontSize: 16,
+    marginBottom: 5,
+    color: "#2196F3",
   },
   location: {
     fontSize: 14,

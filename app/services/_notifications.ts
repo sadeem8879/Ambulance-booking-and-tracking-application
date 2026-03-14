@@ -3,7 +3,7 @@
 
 import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { db } from "../../services/firebase";
-import { DriverNotification } from "../driver/driverType";
+import { DriverNotification } from "../driver/_driverType";
 
 // ==============================
 // SUBSCRIBE TO DRIVER NOTIFICATIONS

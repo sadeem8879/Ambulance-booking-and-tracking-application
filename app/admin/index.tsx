@@ -2,7 +2,7 @@ import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/f
 import { useEffect, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { db } from "../../services/firebase";
-import { Booking, Driver } from "../driver/driverType";
+import { Booking, Driver } from "../driver/_driverType";
 
 export default function AdminPanel() {
   const [drivers, setDrivers] = useState<Driver[]>([]);

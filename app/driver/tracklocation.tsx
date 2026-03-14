@@ -92,50 +92,6 @@ export const getCurrentLocation = async (): Promise<GeoLocation | null> => {
   }
 };
 
-
-// // // DISTANCE + ETA
-// // if(data.driverLocation){
-
-// // const dist = calculateDistance(
-
-// // data.driverLocation.latitude,
-// // data.driverLocation.longitude,
-
-// // data.latitude,
-// // data.longitude
-
-// // );
-
-// // setDistance(dist);
-
-// // const avgSpeed = 40; // ambulance speed km/h
-
-// // const etaMinutes = (dist/avgSpeed)*60;
-
-// // setEta(Math.round(etaMinutes));
-
-// // }
-
-// // setLoading(false);
-
-// // }
-
-// // );
-
-// // return ()=>unsubscribe();
-
-// // },[]);
-
-
-
-// // // ================================
-// // // LOADING
-// // // ================================
-
-// // if(loading){
-
-// // return(
-
 // // <View style={styles.loader}>
 
 // // <ActivityIndicator size="large" color="#e53935"/>

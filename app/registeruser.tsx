@@ -1,58 +1,194 @@
-import { useState } from "react";
-import { View,TextInput,TouchableOpacity,Text,Alert } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc,setDoc } from "firebase/firestore";
-import { auth,db } from "../services/firebase";
+import { Ionicons } from "@expo/vector-icons"; // Assuming this is available
 import { router } from "expo-router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { useState } from "react";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { auth, db } from "../services/firebase";
 
-export default function RegisterUser(){
+export default function RegisterUser() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-const[name,setName]=useState("");
-const[email,setEmail]=useState("");
-const[phone,setPhone]=useState("");
-const[password,setPassword]=useState("");
+  const register = async () => {
+    if (!name || !email || !phone || !password) {
+      Alert.alert("Error", "Please fill all fields");
+      return;
+    }
 
-const register=async()=>{
+    try {
+      setLoading(true);
+      const res = await createUserWithEmailAndPassword(auth, email, password);
+      await setDoc(doc(db, "users", res.user.uid), {
+        name,
+        email,
+        phone,
+        role: "user",
+        createdAt: Date.now(),
+      });
+      Alert.alert("Success", "User Registered Successfully!");
+      router.replace("/login");
+    } catch (e: any) {
+      Alert.alert("Registration Failed", e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-try{
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.header}>
+          <Ionicons name="person-add" size={60} color="#e53935" />
+          <Text style={styles.title}>Create Your Account</Text>
+          <Text style={styles.subtitle}>Join us to book ambulances quickly</Text>
+        </View>
 
-const res=await createUserWithEmailAndPassword(auth,email,password);
+        <View style={styles.form}>
+          <View style={styles.inputContainer}>
+            <Ionicons name="person" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              placeholder="Full Name"
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          </View>
 
-await setDoc(doc(db,"users",res.user.uid),{
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              placeholder="Email Address"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
 
-name,
-email,
-phone,
-role:"user",
-createdAt:Date.now()
+          <View style={styles.inputContainer}>
+            <Ionicons name="call" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              placeholder="Phone Number"
+              style={styles.input}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+            />
+          </View>
 
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed" size={20} color="#666" style={styles.icon} />
+            <TextInput
+              placeholder="Password"
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={register}
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>
+              {loading ? "Registering..." : "Create Account"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={() => router.push("/login")}>
+          <Text style={styles.link}>Already have an account? Login</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 30,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#e53935",
+    marginTop: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 5,
+  },
+  form: {
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+    marginBottom: 20,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    backgroundColor: "#fafafa",
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  icon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: "#e53935",
+    paddingVertical: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  link: {
+    textAlign: "center",
+    color: "#1565c0",
+    fontSize: 16,
+  },
 });
 
-Alert.alert("User Registered");
-
-router.replace("/login");
-
-}catch(e:any){
-Alert.alert(e.message)
-}
-
-};
-
-return(
-
-<View style={{padding:20}}>
-
-<TextInput placeholder="Name" onChangeText={setName}/>
-<TextInput placeholder="Email" onChangeText={setEmail}/>
-<TextInput placeholder="Phone" onChangeText={setPhone}/>
-<TextInput placeholder="Password" secureTextEntry onChangeText={setPassword}/>
-
-<TouchableOpacity onPress={register}>
-<Text>Register User</Text>
-</TouchableOpacity>
-
-</View>
-
-);
-
-}

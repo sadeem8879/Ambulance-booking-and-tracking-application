@@ -41,6 +41,8 @@ export interface Booking {
   id: string;
   patientName: string;
   emergency: string;
+  phoneNumber: string;
+  additionalNotes?: string;
   pickupLocation: GeoLocation;
   dropLocation?: GeoLocation;
   status: BookingStatus;

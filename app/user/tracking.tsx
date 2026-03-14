@@ -1,7 +1,9 @@
-import { doc, onSnapshot } from "firebase/firestore";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,7 +11,7 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { db } from "../../services/firebase";
-import { Booking, GeoLocation } from "../driver/driverType";
+import { Booking, GeoLocation } from "../driver/_driverType";
 
 export default function Tracking({ bookingId }: { bookingId: string }) {
 
@@ -138,7 +140,7 @@ return (
               Distance: {booking.distance.toFixed(1)} km | ETA: {booking.eta} min
             </Text>
           )}
-          <TouchableOpacity style={styles.callButton}>
+          <TouchableOpacity style={styles.callButton} onPress={() => Linking.openURL(`tel:${booking.driverPhone}`)}>
             <Text style={styles.callText}>Call Driver</Text>
           </TouchableOpacity>
         </>
@@ -274,73 +276,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
-//  fontSize:24,
-//  fontWeight:"bold",
-//  marginBottom:20,
-//  textAlign:"center"
-// },
-
-// center:{
-//  flex:1,
-//  justifyContent:"center",
-//  alignItems:"center"
-// },
-
-// loading:{
-//  marginTop:10,
-//  color:"#777"
-// },
-
-// card:{
-//  backgroundColor:"#fff",
-//  padding:20,
-//  borderRadius:14,
-//  shadowColor:"#000",
-//  shadowOpacity:0.1,
-//  shadowOffset:{width:0,height:4},
-//  shadowRadius:6,
-//  elevation:4
-// },
-
-// waiting:{
-//  fontSize:16,
-//  textAlign:"center",
-//  color:"#777"
-// },
-
-// success:{
-//  fontSize:20,
-//  fontWeight:"bold",
-//  color:"#2e7d32",
-//  marginBottom:15
-// },
-
-// label:{
-//  color:"#999",
-//  marginTop:8
-// },
-
-// value:{
-//  fontSize:18,
-//  fontWeight:"bold"
-// },
-
-// callButton:{
-//  marginTop:20,
-//  backgroundColor:"#e53935",
-//  padding:14,
-//  borderRadius:10,
-//  alignItems:"center"
-// },
-
-// callText:{
-//  color:"#fff",
-//  fontWeight:"bold"
-// }
-
-// });
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { updateDoc } from "firebase/firestore";
 
 export function TrackingScreen() {
 
@@ -452,3 +387,1223 @@ export function TrackingScreen() {
     </View>
   );
 }
+[{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 277,
+	"startColumn": 11,
+	"endLineNumber": 277,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'fontWeight'.",
+	"source": "ts",
+	"startLineNumber": 278,
+	"startColumn": 2,
+	"endLineNumber": 278,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 278,
+	"startColumn": 12,
+	"endLineNumber": 278,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 278,
+	"startColumn": 13,
+	"endLineNumber": 278,
+	"endColumn": 19,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'marginBottom'.",
+	"source": "ts",
+	"startLineNumber": 279,
+	"startColumn": 2,
+	"endLineNumber": 279,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 279,
+	"startColumn": 14,
+	"endLineNumber": 279,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 279,
+	"startColumn": 15,
+	"endLineNumber": 279,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'textAlign'.",
+	"source": "ts",
+	"startLineNumber": 280,
+	"startColumn": 2,
+	"endLineNumber": 280,
+	"endColumn": 11,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 280,
+	"startColumn": 11,
+	"endLineNumber": 280,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 281,
+	"startColumn": 1,
+	"endLineNumber": 281,
+	"endColumn": 2,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 281,
+	"startColumn": 2,
+	"endLineNumber": 281,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 284,
+	"startColumn": 7,
+	"endLineNumber": 284,
+	"endColumn": 8,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'justifyContent'.",
+	"source": "ts",
+	"startLineNumber": 285,
+	"startColumn": 2,
+	"endLineNumber": 285,
+	"endColumn": 16,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 285,
+	"startColumn": 16,
+	"endLineNumber": 285,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 285,
+	"startColumn": 17,
+	"endLineNumber": 285,
+	"endColumn": 25,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'alignItems'.",
+	"source": "ts",
+	"startLineNumber": 286,
+	"startColumn": 2,
+	"endLineNumber": 286,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 286,
+	"startColumn": 12,
+	"endLineNumber": 286,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 287,
+	"startColumn": 2,
+	"endLineNumber": 287,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 290,
+	"startColumn": 12,
+	"endLineNumber": 290,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'color'.",
+	"source": "ts",
+	"startLineNumber": 291,
+	"startColumn": 2,
+	"endLineNumber": 291,
+	"endColumn": 7,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 291,
+	"startColumn": 7,
+	"endLineNumber": 291,
+	"endColumn": 8,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 292,
+	"startColumn": 2,
+	"endLineNumber": 292,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 295,
+	"startColumn": 18,
+	"endLineNumber": 295,
+	"endColumn": 24,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'padding'.",
+	"source": "ts",
+	"startLineNumber": 296,
+	"startColumn": 2,
+	"endLineNumber": 296,
+	"endColumn": 9,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 296,
+	"startColumn": 9,
+	"endLineNumber": 296,
+	"endColumn": 10,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 296,
+	"startColumn": 10,
+	"endLineNumber": 296,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'borderRadius'.",
+	"source": "ts",
+	"startLineNumber": 297,
+	"startColumn": 2,
+	"endLineNumber": 297,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 297,
+	"startColumn": 14,
+	"endLineNumber": 297,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 297,
+	"startColumn": 15,
+	"endLineNumber": 297,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'shadowColor'.",
+	"source": "ts",
+	"startLineNumber": 298,
+	"startColumn": 2,
+	"endLineNumber": 298,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 298,
+	"startColumn": 13,
+	"endLineNumber": 298,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 298,
+	"startColumn": 14,
+	"endLineNumber": 298,
+	"endColumn": 20,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'shadowOpacity'.",
+	"source": "ts",
+	"startLineNumber": 299,
+	"startColumn": 2,
+	"endLineNumber": 299,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 299,
+	"startColumn": 15,
+	"endLineNumber": 299,
+	"endColumn": 16,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 299,
+	"startColumn": 16,
+	"endLineNumber": 299,
+	"endColumn": 19,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'shadowOffset'.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 2,
+	"endLineNumber": 300,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 14,
+	"endLineNumber": 300,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 22,
+	"endLineNumber": 300,
+	"endColumn": 23,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'height'.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 24,
+	"endLineNumber": 300,
+	"endColumn": 30,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 30,
+	"endLineNumber": 300,
+	"endColumn": 31,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 300,
+	"startColumn": 33,
+	"endLineNumber": 300,
+	"endColumn": 34,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 301,
+	"startColumn": 15,
+	"endLineNumber": 301,
+	"endColumn": 16,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'elevation'.",
+	"source": "ts",
+	"startLineNumber": 302,
+	"startColumn": 2,
+	"endLineNumber": 302,
+	"endColumn": 11,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 302,
+	"startColumn": 11,
+	"endLineNumber": 302,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 303,
+	"startColumn": 2,
+	"endLineNumber": 303,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 306,
+	"startColumn": 11,
+	"endLineNumber": 306,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'textAlign'.",
+	"source": "ts",
+	"startLineNumber": 307,
+	"startColumn": 2,
+	"endLineNumber": 307,
+	"endColumn": 11,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 307,
+	"startColumn": 11,
+	"endLineNumber": 307,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 307,
+	"startColumn": 12,
+	"endLineNumber": 307,
+	"endColumn": 20,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'color'.",
+	"source": "ts",
+	"startLineNumber": 308,
+	"startColumn": 2,
+	"endLineNumber": 308,
+	"endColumn": 7,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 308,
+	"startColumn": 7,
+	"endLineNumber": 308,
+	"endColumn": 8,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 309,
+	"startColumn": 2,
+	"endLineNumber": 309,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 312,
+	"startColumn": 11,
+	"endLineNumber": 312,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'fontWeight'.",
+	"source": "ts",
+	"startLineNumber": 313,
+	"startColumn": 2,
+	"endLineNumber": 313,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 313,
+	"startColumn": 12,
+	"endLineNumber": 313,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 313,
+	"startColumn": 13,
+	"endLineNumber": 313,
+	"endColumn": 19,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'color'.",
+	"source": "ts",
+	"startLineNumber": 314,
+	"startColumn": 2,
+	"endLineNumber": 314,
+	"endColumn": 7,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 314,
+	"startColumn": 7,
+	"endLineNumber": 314,
+	"endColumn": 8,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 314,
+	"startColumn": 8,
+	"endLineNumber": 314,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'marginBottom'.",
+	"source": "ts",
+	"startLineNumber": 315,
+	"startColumn": 2,
+	"endLineNumber": 315,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 315,
+	"startColumn": 14,
+	"endLineNumber": 315,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 316,
+	"startColumn": 2,
+	"endLineNumber": 316,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 319,
+	"startColumn": 8,
+	"endLineNumber": 319,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'marginTop'.",
+	"source": "ts",
+	"startLineNumber": 320,
+	"startColumn": 2,
+	"endLineNumber": 320,
+	"endColumn": 11,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 320,
+	"startColumn": 11,
+	"endLineNumber": 320,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 321,
+	"startColumn": 2,
+	"endLineNumber": 321,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 324,
+	"startColumn": 11,
+	"endLineNumber": 324,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'fontWeight'.",
+	"source": "ts",
+	"startLineNumber": 325,
+	"startColumn": 2,
+	"endLineNumber": 325,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 325,
+	"startColumn": 12,
+	"endLineNumber": 325,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 326,
+	"startColumn": 2,
+	"endLineNumber": 326,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 329,
+	"startColumn": 12,
+	"endLineNumber": 329,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'backgroundColor'.",
+	"source": "ts",
+	"startLineNumber": 330,
+	"startColumn": 2,
+	"endLineNumber": 330,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 330,
+	"startColumn": 17,
+	"endLineNumber": 330,
+	"endColumn": 18,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 330,
+	"startColumn": 18,
+	"endLineNumber": 330,
+	"endColumn": 27,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'padding'.",
+	"source": "ts",
+	"startLineNumber": 331,
+	"startColumn": 2,
+	"endLineNumber": 331,
+	"endColumn": 9,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 331,
+	"startColumn": 9,
+	"endLineNumber": 331,
+	"endColumn": 10,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 331,
+	"startColumn": 10,
+	"endLineNumber": 331,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'borderRadius'.",
+	"source": "ts",
+	"startLineNumber": 332,
+	"startColumn": 2,
+	"endLineNumber": 332,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 332,
+	"startColumn": 14,
+	"endLineNumber": 332,
+	"endColumn": 15,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 332,
+	"startColumn": 15,
+	"endLineNumber": 332,
+	"endColumn": 17,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'alignItems'.",
+	"source": "ts",
+	"startLineNumber": 333,
+	"startColumn": 2,
+	"endLineNumber": 333,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 333,
+	"startColumn": 12,
+	"endLineNumber": 333,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 334,
+	"startColumn": 2,
+	"endLineNumber": 334,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2695",
+	"severity": 8,
+	"message": "Left side of comma operator is unused and has no side effects.",
+	"source": "ts",
+	"startLineNumber": 337,
+	"startColumn": 8,
+	"endLineNumber": 337,
+	"endColumn": 14,
+	"modelVersionId": 21,
+	"tags": [
+		1
+	],
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "2304",
+	"severity": 8,
+	"message": "Cannot find name 'fontWeight'.",
+	"source": "ts",
+	"startLineNumber": 338,
+	"startColumn": 2,
+	"endLineNumber": 338,
+	"endColumn": 12,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1005",
+	"severity": 8,
+	"message": "';' expected.",
+	"source": "ts",
+	"startLineNumber": 338,
+	"startColumn": 12,
+	"endLineNumber": 338,
+	"endColumn": 13,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 341,
+	"startColumn": 1,
+	"endLineNumber": 341,
+	"endColumn": 2,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+},{
+	"resource": "/d:/my-app/app/user/tracking.tsx",
+	"owner": "typescript",
+	"code": "1128",
+	"severity": 8,
+	"message": "Declaration or statement expected.",
+	"source": "ts",
+	"startLineNumber": 341,
+	"startColumn": 2,
+	"endLineNumber": 341,
+	"endColumn": 3,
+	"modelVersionId": 21,
+	"origin": "extHost1"
+}]

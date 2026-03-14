@@ -1,20 +1,20 @@
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Linking,
-  Alert,
-  SafeAreaView,
-  ScrollView
+    ActivityIndicator,
+    Alert,
+    Linking,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { useLocalSearchParams, router } from "expo-router";
 
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db, auth } from "../../services/firebase";
+import { auth, db } from "../../services/firebase";
 
 export default function BookingDetails() {
   const { id } = useLocalSearchParams();
@@ -103,22 +103,23 @@ export default function BookingDetails() {
   // CALL PATIENT
   // ==============================
   const callPatient = () => {
-    if (!booking?.phone) {
+    if (!booking?.phoneNumber) {
       Alert.alert("No phone number");
       return;
     }
-    Linking.openURL(`tel:${booking.phone}`);
+    Linking.openURL(`tel:${booking.phoneNumber}`);
   };
 
   // ==============================
   // OPEN MAP
   // ==============================
   const openMap = () => {
-    if (!booking?.location) {
+    if (!booking?.pickupLocation) {
       Alert.alert("Location not available");
       return;
     }
-    const url = `https://www.google.com/maps/search/?api=1&query=${booking.location}`;
+    const { latitude, longitude } = booking.pickupLocation;
+    const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
     Linking.openURL(url);
   };
 
@@ -157,11 +158,22 @@ export default function BookingDetails() {
           <Text style={styles.label}>Patient Name</Text>
           <Text style={styles.value}>{booking.patientName}</Text>
 
-          <Text style={styles.label}>Phone</Text>
-          <Text style={styles.value}>{booking.phone || "N/A"}</Text>
+          <Text style={styles.label}>Emergency Type</Text>
+          <Text style={styles.value}>{booking.emergency}</Text>
+
+          <Text style={styles.label}>Phone Number</Text>
+          <Text style={styles.value}>{booking.phoneNumber || "N/A"}</Text>
+
+          <Text style={styles.label}>Additional Notes</Text>
+          <Text style={styles.value}>{booking.additionalNotes || "N/A"}</Text>
 
           <Text style={styles.label}>Pickup Location</Text>
-          <Text style={styles.value}>{booking.location || "N/A"}</Text>
+          <Text style={styles.value}>
+            {booking.pickupLocation 
+              ? `Lat: ${booking.pickupLocation.latitude.toFixed(4)}, Lon: ${booking.pickupLocation.longitude.toFixed(4)}`
+              : "N/A"
+            }
+          </Text>
 
           <Text style={styles.label}>Status</Text>
           <Text style={styles.status}>{booking.status}</Text>
