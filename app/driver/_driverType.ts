@@ -65,6 +65,8 @@ export interface Trip {
   driverId: string;
   driverName: string;
   driverPhone: string;
+  userId?: string;
+  userPhone?: string;
   patientName: string;
   pickupLocation: GeoLocation;
   dropLocation?: GeoLocation;

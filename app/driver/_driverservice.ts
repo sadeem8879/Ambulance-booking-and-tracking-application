@@ -186,13 +186,18 @@ export const acceptBooking = async (
   driverLocation?: GeoLocation
 ) => {
   try {
-    const driverPhone = auth.currentUser?.phoneNumber || "N/A";
+    // Get driver profile for name and phone
+    const driverRef = doc(db, "drivers", driverId);
+    const driverSnap = await getDoc(driverRef);
+    const driverData = driverSnap.data();
+    const driverName = driverData?.name || "Driver";
+    const driverPhone = driverData?.phone || auth.currentUser?.phoneNumber || "N/A";
 
     // Mark booking as accepted
     await updateDoc(doc(db, "bookings", booking.id), {
       status: "accepted",
       driverId,
-      driverName: "Driver", // TODO: use actual driver name from profile
+      driverName,
       driverPhone,
     });
 
@@ -200,8 +205,10 @@ export const acceptBooking = async (
     const tripRef = await addDoc(collection(db, "trips"), {
       bookingId: booking.id,
       driverId,
-      driverName: "Driver",
+      driverName,
       driverPhone,
+      userId: booking.userId,
+      userPhone: booking.userPhone || booking.phoneNumber || 'N/A',
       patientName: booking.patientName,
       pickupLocation: booking.pickupLocation,
       dropLocation: booking.dropLocation || null,

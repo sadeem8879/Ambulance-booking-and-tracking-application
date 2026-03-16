@@ -78,53 +78,58 @@ export default function AdminPanel() {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Admin Dashboard</Text>
-
-      {/* Drivers Section */}
-      <Text style={styles.sectionHeader}>Drivers</Text>
-      <FlatList
-        data={drivers}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text>Phone: {item.phone}</Text>
-            <Text>Approved: {item.approved ? "Yes" : "No"}</Text>
-            <Text>Online: {item.online ? "Yes" : "No"}</Text>
-            {!item.approved && (
-              <TouchableOpacity
-                style={styles.approveBtn}
-                onPress={() => approveDriver(item.id)}
-              >
-                <Text style={styles.btnText}>Approve Driver</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      />
-
-      {/* Bookings Section */}
-      <Text style={styles.sectionHeader}>Pending Bookings</Text>
-      <FlatList
-        data={bookings}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.name}>{item.patientName}</Text>
-            <Text>Emergency: {item.emergency}</Text>
-            <Text>Location: {item.pickupLocation.latitude.toFixed(3)}, {item.pickupLocation.longitude.toFixed(3)}</Text>
-            <Text style={styles.assignText}>Assign to Driver:</Text>
-            {drivers.filter(d => d.approved && d.online).map(driver => (
-              <TouchableOpacity
-                key={driver.id}
-                style={styles.assignBtn}
-                onPress={() => assignBooking(item.id, driver.id)}
-              >
-                <Text style={styles.btnText}>{driver.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      />
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionHeader}>Drivers</Text>
+        <FlatList
+          data={drivers}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <Text style={styles.name}>{item.name}</Text>
+              <Text>Phone: {item.phone}</Text>
+              <Text>Approved: {item.approved ? "Yes" : "No"}</Text>
+              <Text>Online: {item.online ? "Yes" : "No"}</Text>
+              {!item.approved && (
+                <TouchableOpacity
+                  style={styles.approveBtn}
+                  onPress={() => approveDriver(item.id)}
+                >
+                  <Text style={styles.btnText}>Approve Driver</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+          style={{ marginBottom: 20 }}
+        />
+      </View>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionHeader}>Pending Bookings</Text>
+        <FlatList
+          data={bookings}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <Text style={styles.name}>{item.patientName}</Text>
+              <Text>Emergency: {item.emergency}</Text>
+              {item.pickupLocation && typeof item.pickupLocation.latitude === 'number' && typeof item.pickupLocation.longitude === 'number' ? (
+                <Text>Location: {item.pickupLocation.latitude.toFixed(3)}, {item.pickupLocation.longitude.toFixed(3)}</Text>
+              ) : (
+                <Text>Location: Not available</Text>
+              )}
+              <Text style={styles.assignText}>Assign to Driver:</Text>
+              {drivers.filter(d => d.approved && d.online).map(driver => (
+                <TouchableOpacity
+                  key={driver.id}
+                  style={styles.assignBtn}
+                  onPress={() => assignBooking(item.id, driver.id)}
+                >
+                  <Text style={styles.btnText}>{driver.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        />
+      </View>
     </View>
   );
 }
@@ -145,8 +150,20 @@ const styles = StyleSheet.create({
   sectionHeader: {
     fontSize: 20,
     fontWeight: "bold",
-    marginTop: 20,
     marginBottom: 10,
+    color: "#333",
+    letterSpacing: 0.5,
+  },
+  sectionCard: {
+    backgroundColor: "#f0f4f8",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 2,
   },
   card: {
     backgroundColor: "#fff",

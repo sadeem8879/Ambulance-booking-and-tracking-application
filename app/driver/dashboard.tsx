@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     Alert,
     FlatList,
+    Linking,
     StyleSheet,
     Switch,
     Text,
@@ -362,6 +363,7 @@ export default function DriverDashboard() {
         <View style={styles.tripBox}>
           <Text style={styles.tripTitle}>Current Trip</Text>
           <Text style={styles.info}>Patient: {currentTrip.patientName}</Text>
+          <Text style={styles.info}>User Phone: {currentTrip.userPhone}</Text>
           <Text style={styles.info}>Status: {currentTrip.status}</Text>
           {currentTrip.distance != null && (
             <Text style={styles.info}>Distance: {currentTrip.distance.toFixed(1)} km</Text>
@@ -369,6 +371,9 @@ export default function DriverDashboard() {
           {currentTrip.eta != null && (
             <Text style={styles.info}>ETA: {currentTrip.eta} min</Text>
           )}
+          <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${currentTrip.userPhone}`)}>
+            <Text style={styles.callText}>Call User</Text>
+          </TouchableOpacity>
           {currentTrip.status === "accepted" && (
             <TouchableOpacity style={styles.startBtn} onPress={handleStartTrip}>
               <Text style={styles.btnText}>Start Trip</Text>
@@ -500,41 +505,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
-  tripBox: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  tripTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  info: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: "#555",
-  },
-  startBtn: {
-    backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  completeBtn: {
-    backgroundColor: "#2196F3",
-    padding: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
   notificationsBox: {
     backgroundColor: "#fff",
     padding: 15,
@@ -617,5 +587,51 @@ const styles = StyleSheet.create({
   btnText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  tripBox: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  tripTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#e53935",
+  },
+  info: {
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  callBtn: {
+    backgroundColor: "#2196F3",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  callText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  startBtn: {
+    backgroundColor: "#FF9800",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  completeBtn: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
   },
 });

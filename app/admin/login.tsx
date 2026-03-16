@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_USERNAME } from "../../constants/env";
+import { ADMIN_PASSWORD, ADMIN_USERNAME } from "../../constants/env";
 import { auth } from "../../services/firebase";
 import { getUserRole } from "../../services/getUserRole";
 
@@ -15,13 +15,16 @@ export default function AdminLogin() {
     try {
       setLoading(true);
 
-      // Support the requested admin credentials style (username/password)
-      const email =
-        username === ADMIN_USERNAME && password === ADMIN_PASSWORD
-          ? ADMIN_EMAIL
-          : username;
+      // Check for hardcoded admin credentials first
+      if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        // For hardcoded admin, we don't need Firebase auth
+        // Just navigate directly to admin panel
+        router.replace("/admin");
+        return;
+      }
 
-      const result = await signInWithEmailAndPassword(auth, email, password);
+      // If not hardcoded credentials, try Firebase authentication
+      const result = await signInWithEmailAndPassword(auth, username, password);
       const role = await getUserRole(result.user.uid);
 
       if (role !== "admin") {
@@ -32,7 +35,17 @@ export default function AdminLogin() {
 
       router.replace("/admin");
     } catch (err: any) {
-      Alert.alert("Login Failed", err.message);
+      let errorMessage = "Login Failed";
+      if (err.code === "auth/user-not-found") {
+        errorMessage = "Admin account not found. Please check your credentials.";
+      } else if (err.code === "auth/wrong-password") {
+        errorMessage = "Incorrect password. Please try again.";
+      } else if (err.code === "auth/invalid-email") {
+        errorMessage = "Invalid email format.";
+      } else {
+        errorMessage = err.message || "Login failed. Please try again.";
+      }
+      Alert.alert("Login Failed", errorMessage);
     } finally {
       setLoading(false);
     }
