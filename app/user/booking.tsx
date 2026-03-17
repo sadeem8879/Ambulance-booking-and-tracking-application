@@ -5,8 +5,8 @@ import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { GeoLocation } from "../../lib/driverTypes";
 import { auth, db } from "../../services/firebase";
-import { GeoLocation } from "../driver/_driverType";
 
 const emergencyTypes = [
   { label: 'Select Emergency Type', value: '' },

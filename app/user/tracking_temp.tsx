@@ -2,16 +2,16 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Linking,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import { Booking, GeoLocation } from "../../lib/driverTypes";
 import { db } from "../../services/firebase";
-import { Booking, GeoLocation } from "../driver/_driverType";
 
 export default function Tracking({ bookingId }: { bookingId: string }) {
 

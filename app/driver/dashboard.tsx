@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-import { doc, DocumentSnapshot, onSnapshot } from "firebase/firestore";
+import { doc, DocumentSnapshot, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
     Alert,
@@ -10,11 +10,9 @@ import {
     Switch,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { auth, db } from "../../services/firebase";
-import { markNotificationAsRead, subscribeToNotifications } from "../services/_notifications";
 import {
     acceptBooking,
     calculateDistance,
@@ -22,12 +20,13 @@ import {
     getDirections,
     goOffline,
     goOnline,
-    startTrip,
     subscribeNearbyBookings,
     updateBookingETA,
-    updateTripETA,
-} from "./_driverservice";
-import { Booking, Driver, DriverNotification, GeoLocation, Trip } from "./_driverType";
+    updateTripETA
+} from "../../lib/driverService";
+import { Booking, Driver, DriverNotification, GeoLocation, Trip } from "../../lib/driverTypes";
+import { markNotificationAsRead, subscribeToNotifications } from "../../lib/notifications";
+import { auth, db } from "../../services/firebase";
 
 export default function DriverDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -208,6 +207,12 @@ export default function DriverDashboard() {
   const handleAcceptBooking = async (booking: Booking) => {
     if (!auth.currentUser) return;
 
+    // Check if driver is already on a trip
+    if (driver?.currentTripId) {
+      Alert.alert("Cannot Accept", "You are currently on an active trip. Complete it first.");
+      return;
+    }
+
     try {
       await acceptBooking(auth.currentUser.uid, booking, driverLocation || undefined);
       Alert.alert("Booking Accepted", `You accepted ${booking.patientName}'s request`);
@@ -224,8 +229,16 @@ export default function DriverDashboard() {
     if (!auth.currentUser || !currentTrip) return;
 
     try {
-      await startTrip(auth.currentUser.uid, currentTrip.id);
+      // Generate OTP and send to user
+      const otp = Math.floor(1000 + Math.random() * 9000).toString();
+      await updateDoc(doc(db, "trips", currentTrip.id), {
+        otp: otp,
+        otpGeneratedAt: new Date(),
+      });
+      
       Alert.alert("Trip Started", "Safe journey!");
+      // Navigate to tracking screen
+      router.push(`/driver/tracklocation?id=${currentTrip.bookingId}`);
     } catch (error) {
       console.error("Start trip error:", error);
       Alert.alert("Error", "Failed to start trip");
@@ -249,6 +262,56 @@ export default function DriverDashboard() {
   };
 
   // ==============================
+  // CANCEL TRIP
+  // ==============================
+  const handleCancelTrip = () => {
+    Alert.alert(
+      "Cancel Trip",
+      "Are you sure you want to cancel this trip?",
+      [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (!auth.currentUser || !currentTrip) return;
+              
+              // Update trip status to cancelled
+              const tripRef = doc(db, "trips", currentTrip.id);
+              await updateDoc(tripRef, {
+                status: "cancelled",
+                cancelledAt: new Date(),
+                cancelledBy: "driver"
+              });
+
+              // Update booking status to cancelled
+              const bookingRef = doc(db, "bookings", currentTrip.bookingId);
+              await updateDoc(bookingRef, {
+                status: "cancelled",
+                cancelledAt: new Date(),
+                cancelledBy: "driver"
+              });
+
+              // Clear current trip
+              const driverRef = doc(db, "drivers", auth.currentUser.uid);
+              await updateDoc(driverRef, {
+                currentTripId: null
+              });
+
+              setCurrentTrip(null);
+              Alert.alert("Trip Cancelled", "Trip has been cancelled successfully");
+            } catch (error) {
+              console.error("Cancel trip error:", error);
+              Alert.alert("Error", "Failed to cancel trip");
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // ==============================
   // LOGOUT
   // ==============================
   const handleLogout = async () => {
@@ -267,8 +330,8 @@ export default function DriverDashboard() {
   // ==============================
   // RENDER
   // ==============================
-  return (
-    <View style={styles.container}>
+  const ListHeader = () => (
+    <>
       {/* Header */}
       <View style={styles.headerRow}>
         <View>
@@ -387,47 +450,58 @@ export default function DriverDashboard() {
               <Text style={styles.btnText}>Complete Trip</Text>
             </TouchableOpacity>
           )}
+          {currentTrip.status !== "completed" && (
+            <TouchableOpacity style={styles.cancelTripBtn} onPress={() => handleCancelTrip()}>
+              <Text style={styles.cancelTripText}>Cancel Trip</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
       {/* Bookings List */}
       <Text style={styles.header}>Nearby Ambulance Requests</Text>
-      {bookings.length === 0 && (
-        <Text style={styles.noBookings}>No requests at the moment</Text>
-      )}
+    </>
+  );
 
-      <FlatList
-        data={bookings}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 50 }}
-        renderItem={({ item }) => {
-          const hasLocation =
-            item.pickupLocation &&
-            typeof item.pickupLocation.latitude === "number" &&
-            typeof item.pickupLocation.longitude === "number";
+  return (
+    <FlatList
+      style={styles.container}
+      ListHeaderComponent={<ListHeader />}
+      ListEmptyComponent={
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={styles.noBookings}>No requests at the moment</Text>
+        </View>
+      }
+      data={bookings}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{ paddingBottom: 50 }}
+      renderItem={({ item }) => {
+        const hasLocation =
+          item.pickupLocation &&
+          typeof item.pickupLocation.latitude === "number" &&
+          typeof item.pickupLocation.longitude === "number";
 
-          return (
-            <View style={styles.card}>
-              <Text style={styles.patient}>Patient: {item.patientName}</Text>
-              <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
-              <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
-              <Text style={styles.location}>
-                Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
+        return (
+          <View style={styles.card}>
+            <Text style={styles.patient}>Patient: {item.patientName}</Text>
+            <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
+            <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
+            <Text style={styles.location}>
+              Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
+            </Text>
+            <TouchableOpacity
+              style={[styles.acceptBtn, driver?.currentTripId && styles.disabledBtn]}
+              onPress={() => handleAcceptBooking(item)}
+              disabled={!hasLocation || !!driver?.currentTripId}
+            >
+              <Text style={styles.btnText}>
+                {!hasLocation ? "Invalid request" : driver?.currentTripId ? "On Active Trip" : "Accept Request"}
               </Text>
-              <TouchableOpacity
-                style={styles.acceptBtn}
-                onPress={() => handleAcceptBooking(item)}
-                disabled={!hasLocation}
-              >
-                <Text style={styles.btnText}>
-                  {hasLocation ? "Accept Request" : "Invalid request"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          );
-        }}
-      />
-    </View>
+            </TouchableOpacity>
+          </View>
+        );
+      }}
+    />
   );
 }
 
@@ -584,6 +658,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
+  disabledBtn: {
+    backgroundColor: "#ccc",
+  },
   btnText: {
     color: "#fff",
     fontWeight: "bold",
@@ -633,5 +710,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginTop: 10,
+  },
+  cancelTripBtn: {
+    backgroundColor: "#d32f2f",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  cancelTripText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

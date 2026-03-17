@@ -5,11 +5,10 @@ import { signOut } from "firebase/auth";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Booking } from "../../lib/driverTypes";
 import { auth, db } from "../../services/firebase";
-import { Booking } from "../driver/_driverType";
 
 export default function Dashboard() {
-  const [tab, setTab] = useState<'day' | 'week' | 'month' | 'all'>('day');
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,33 +25,10 @@ export default function Dashboard() {
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      let bookingsList: Booking[] = snap.docs.map((doc) => ({
+      const bookingsList: Booking[] = snap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Booking[];
-
-      // Filter by tab
-      const now = new Date();
-      if (tab === 'day') {
-        bookingsList = bookingsList.filter(b => {
-          const d = b.requestedAt?.toDate();
-          return d && d.toDateString() === now.toDateString();
-        });
-      } else if (tab === 'week') {
-        const weekAgo = new Date(now);
-        weekAgo.setDate(now.getDate() - 6);
-        bookingsList = bookingsList.filter(b => {
-          const d = b.requestedAt?.toDate();
-          return d && d >= weekAgo && d <= now;
-        });
-      } else if (tab === 'month') {
-        const monthAgo = new Date(now);
-        monthAgo.setMonth(now.getMonth() - 1);
-        bookingsList = bookingsList.filter(b => {
-          const d = b.requestedAt?.toDate();
-          return d && d >= monthAgo && d <= now;
-        });
-      }
 
       // Sort by requestedAt descending
       setBookings(
@@ -68,8 +44,7 @@ export default function Dashboard() {
   useEffect(() => {
     const unsub = fetchBookings();
     return () => unsub && unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab]);
+  }, []);
 
   // ==============================
   // PULL TO REFRESH
@@ -83,7 +58,7 @@ export default function Dashboard() {
   // NAVIGATE TO TRACKING
   // ==============================
   const trackBooking = (bookingId: string) => {
-    router.push(`/user/tracking?bookingId=${bookingId}`);
+    router.push(`/tracking?bookingId=${bookingId}`);
   };
 
   if (loading) {
@@ -110,21 +85,6 @@ export default function Dashboard() {
         </Pressable>
       </View>
       <Text style={styles.subHeader}>User Dashboard</Text>
-
-      {/* Top Segmented Control */}
-      <View style={styles.segmentedControl}>
-        {['day', 'week', 'month', 'all'].map((key) => (
-          <TouchableOpacity
-            key={key}
-            style={[styles.segment, tab === key && styles.segmentActive]}
-            onPress={() => setTab(key as any)}
-          >
-            <Text style={[styles.segmentText, tab === key && styles.segmentTextActive]}>
-              {key.charAt(0).toUpperCase() + key.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {/* Book Ambulance Card */}
       <View style={styles.card}>
@@ -216,37 +176,6 @@ const styles = StyleSheet.create({
   logoutBtn: {
     padding: 6,
     marginLeft: 8,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    backgroundColor: '#e3eaf2',
-    borderRadius: 24,
-    marginVertical: 18,
-    alignSelf: 'center',
-    padding: 4,
-  },
-  segment: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignItems: 'center',
-    marginHorizontal: 2,
-  },
-  segmentActive: {
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  segmentText: {
-    color: '#888',
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  segmentTextActive: {
-    color: '#1976d2',
   },
   subHeader: {
     fontSize: 18,

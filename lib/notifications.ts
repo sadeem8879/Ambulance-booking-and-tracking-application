@@ -2,8 +2,8 @@
 // Notification Service for Drivers
 
 import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { db } from "../../services/firebase";
-import { DriverNotification } from "../driver/_driverType";
+import { db } from "../services/firebase";
+import { DriverNotification } from "./driverTypes";
 
 // ==============================
 // SUBSCRIBE TO DRIVER NOTIFICATIONS

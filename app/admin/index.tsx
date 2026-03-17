@@ -1,8 +1,8 @@
 import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Booking, Driver } from "../../lib/driverTypes";
 import { db } from "../../services/firebase";
-import { Booking, Driver } from "../driver/_driverType";
 
 export default function AdminPanel() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -76,7 +76,7 @@ export default function AdminPanel() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 50 }}>
       <Text style={styles.header}>Admin Dashboard</Text>
       <View style={styles.sectionCard}>
         <Text style={styles.sectionHeader}>Drivers</Text>
@@ -130,7 +130,7 @@ export default function AdminPanel() {
           )}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 

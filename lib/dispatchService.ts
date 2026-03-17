@@ -1,12 +1,12 @@
 import {
-collection,
-doc,
-getDocs,
-getDoc,
-updateDoc
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    updateDoc
 } from "firebase/firestore";
 
-import { db } from "../../services/firebase";
+import { db } from "../services/firebase";
 
 
 // =======================================

@@ -2,6 +2,7 @@ import {
     ActivityIndicator,
     Alert,
     Linking,
+    Modal,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -14,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 
 import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { acceptBooking } from "../../lib/driverService";
 import { auth, db } from "../../services/firebase";
 
 export default function BookingDetails() {
@@ -21,6 +23,8 @@ export default function BookingDetails() {
 
   const [booking, setBooking] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showOTPModal, setShowOTPModal] = useState(false);
+  const [otp, setOtp] = useState("");
 
   // ==============================
   // FETCH BOOKING DETAILS
@@ -44,39 +48,79 @@ export default function BookingDetails() {
   // ==============================
   // ACCEPT BOOKING
   // ==============================
-  const acceptBooking = async () => {
+  const handleAccept = async () => {
     try {
       if (!booking) return;
 
-      await updateDoc(doc(db, "bookings", booking.id), {
-        status: "accepted",
-        driverId: auth.currentUser?.uid,
-        assignedAt: Date.now()
-      });
-
-      Alert.alert("Success", "Booking Accepted");
+      await acceptBooking(auth.currentUser!.uid, booking);
+      Alert.alert("Success", "Booking Accepted! Head to patient location.");
       fetchBooking();
     } catch (e) {
       console.log("Accept booking error:", e);
+      Alert.alert("Error", "Failed to accept booking");
     }
   };
 
   // ==============================
-  // START RIDE
+  // ARRIVED AT LOCATION (Show OTP)
   // ==============================
-  const startRide = async () => {
+  const arrivedAtLocation = async () => {
+    if (!booking) return;
+
+    try {
+      // Generate 4-digit OTP
+      const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+
+      await updateDoc(doc(db, "bookings", booking.id), {
+        status: "arrived",
+        arrivedAt: Date.now(),
+        otp: generatedOTP,
+      });
+
+      // If trip exists, update it too
+      if (booking.tripId) {
+        await updateDoc(doc(db, "trips", booking.tripId), {
+          status: "arrived",
+          arrivedAt: Date.now(),
+          otp: generatedOTP,
+        });
+      }
+
+      setOtp(generatedOTP);
+      setShowOTPModal(true);
+      Alert.alert("Success", "You've arrived! OTP generated for patient verification.");
+      fetchBooking();
+    } catch (e) {
+      console.log("Arrived error:", e);
+      Alert.alert("Error", "Failed to mark arrival");
+    }
+  };
+
+  // ==============================
+  // START TRIP (After OTP is verified by patient)
+  // ==============================
+  const startTrip = async () => {
     if (!booking) return;
 
     try {
       await updateDoc(doc(db, "bookings", booking.id), {
-        status: "on_the_way",
+        status: "in-progress",
         startedAt: Date.now()
       });
 
-      Alert.alert("Ride Started", "Navigate to patient location");
+      // If trip exists, update it too
+      if (booking.tripId) {
+        await updateDoc(doc(db, "trips", booking.tripId), {
+          status: "in-progress",
+          startedAt: Date.now()
+        });
+      }
+
+      setShowOTPModal(false);
+      Alert.alert("Trip Started", "Safe journey! Head to hospital.");
       fetchBooking();
     } catch (e) {
-      console.log("Start ride error:", e);
+      console.log("Start trip error:", e);
     }
   };
 
@@ -91,6 +135,14 @@ export default function BookingDetails() {
         status: "completed",
         completedAt: Date.now()
       });
+
+      // If trip exists, update it too
+      if (booking.tripId) {
+        await updateDoc(doc(db, "trips", booking.tripId), {
+          status: "completed",
+          completedAt: Date.now()
+        });
+      }
 
       Alert.alert("Ride Completed", "Thank you!");
       router.replace("/driver/dashboard");
@@ -191,26 +243,78 @@ export default function BookingDetails() {
           </TouchableOpacity>
 
           {/* Accept */}
-          {booking.status === "pending" && (
-            <TouchableOpacity style={styles.acceptBtn} onPress={acceptBooking}>
-              <Text style={styles.btnText}>Accept Request</Text>
+          {booking.status === "searching" && (
+            <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
+              <Text style={styles.btnText}>✅ Accept Request</Text>
             </TouchableOpacity>
           )}
 
-          {/* Start Ride */}
+          {/* Arrived at Location */}
           {booking.status === "accepted" && (
-            <TouchableOpacity style={styles.startBtn} onPress={startRide}>
-              <Text style={styles.btnText}>Start Ride</Text>
+            <TouchableOpacity style={styles.arrivedBtn} onPress={arrivedAtLocation}>
+              <Text style={styles.btnText}>📍 Arrived at Location</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Start Trip (after OTP shown) */}
+          {booking.status === "arrived" && (
+            <TouchableOpacity style={styles.startBtn} onPress={() => setShowOTPModal(true)}>
+              <Text style={styles.btnText}>🚑 Show OTP / Start Trip</Text>
             </TouchableOpacity>
           )}
 
           {/* Complete Ride */}
-          {booking.status === "on_the_way" && (
+          {booking.status === "in-progress" && (
             <TouchableOpacity style={styles.completeBtn} onPress={completeRide}>
-              <Text style={styles.btnText}>Complete Ride</Text>
+              <Text style={styles.btnText}>✅ Complete Ride</Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {/* OTP Modal */}
+        <Modal
+          visible={showOTPModal && booking.status === "arrived"}
+          transparent={true}
+          animationType="slide"
+        >
+          <View style={styles.otpOverlay}>
+            <View style={styles.otpCard}>
+              <Text style={styles.otpTitle}>📋 OTP for Patient</Text>
+              <Text style={styles.otpSubtitle}>Share this OTP with the patient to start the trip</Text>
+              
+              <View style={styles.otpDisplayBox}>
+                <Text style={styles.otpValue}>{otp}</Text>
+              </View>
+
+              <Text style={styles.otpInstruction}>
+                Patient will enter this OTP in their app to verify pickup
+              </Text>
+
+              <TouchableOpacity 
+                style={styles.copyOtpBtn} 
+                onPress={() => {
+                  Alert.alert("OTP Copied", `OTP ${otp} copied to clipboard`);
+                }}
+              >
+                <Text style={styles.btnText}>📋 Copy OTP</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.startTripBtn} 
+                onPress={startTrip}
+              >
+                <Text style={styles.btnText}>✅ Start Trip (After Patient Verifies OTP)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.otpCloseBtn} 
+                onPress={() => setShowOTPModal(false)}
+              >
+                <Text style={styles.otpCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -230,8 +334,84 @@ const styles = StyleSheet.create({
   callBtn: { backgroundColor: "#4CAF50", padding: 15, borderRadius: 10, alignItems: "center" },
   mapBtn: { backgroundColor: "#FF9800", padding: 15, borderRadius: 10, alignItems: "center" },
   acceptBtn: { backgroundColor: "#2196F3", padding: 15, borderRadius: 10, alignItems: "center" },
+  arrivedBtn: { backgroundColor: "#FF9800", padding: 15, borderRadius: 10, alignItems: "center" },
   startBtn: { backgroundColor: "#9C27B0", padding: 15, borderRadius: 10, alignItems: "center" },
   completeBtn: { backgroundColor: "#e53935", padding: 15, borderRadius: 10, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" }
+  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  
+  // OTP Modal Styles
+  otpOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  otpCard: {
+    backgroundColor: "#fff",
+    padding: 30,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+  },
+  otpTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#333",
+  },
+  otpSubtitle: {
+    fontSize: 14,
+    textAlign: "center",
+    color: "#666",
+    marginBottom: 25,
+  },
+  otpDisplayBox: {
+    backgroundColor: "#f0f0f0",
+    padding: 25,
+    borderRadius: 15,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "#e53935",
+  },
+  otpValue: {
+    fontSize: 48,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#e53935",
+    letterSpacing: 10,
+  },
+  otpInstruction: {
+    fontSize: 13,
+    textAlign: "center",
+    color: "#666",
+    marginBottom: 20,
+    fontStyle: "italic",
+  },
+  copyOtpBtn: {
+    backgroundColor: "#2196F3",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  startTripBtn: {
+    backgroundColor: "#4CAF50",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  otpCloseBtn: {
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  otpCloseText: {
+    color: "#666",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

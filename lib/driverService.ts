@@ -1,9 +1,9 @@
 // 📁 app/driver/driverservice.ts
 
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { auth, db } from "../../services/firebase";
-import { Booking, DriverNotification, GeoLocation, Trip } from "./_driverType";
-import { startDriverTracking, stopDriverTracking } from "./tracklocation";
+import { startDriverTracking, stopDriverTracking } from "../app/driver/tracklocation";
+import { auth, db } from "../services/firebase";
+import { Booking, DriverNotification, GeoLocation, Trip } from "./driverTypes";
 
 // ==============================
 // GO ONLINE
@@ -73,12 +73,12 @@ export const subscribeNearbyBookings = (
       .map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      }))
+      }) as Booking)
       .filter((b) =>
         b.pickupLocation &&
         typeof b.pickupLocation.latitude === "number" &&
         typeof b.pickupLocation.longitude === "number"
-      ) as Booking[];
+      );
 
     // If driver location provided, sort by distance
     if (driverLocation) {
@@ -193,12 +193,14 @@ export const acceptBooking = async (
     const driverName = driverData?.name || "Driver";
     const driverPhone = driverData?.phone || auth.currentUser?.phoneNumber || "N/A";
 
-    // Mark booking as accepted
+    // Mark booking as accepted (and update initial driver location if available)
     await updateDoc(doc(db, "bookings", booking.id), {
       status: "accepted",
       driverId,
       driverName,
       driverPhone,
+      driverLocation: driverLocation || null,
+      lastLocationUpdate: Date.now(),
     });
 
     // Create a trip record
@@ -207,8 +209,8 @@ export const acceptBooking = async (
       driverId,
       driverName,
       driverPhone,
-      userId: booking.userId,
-      userPhone: booking.userPhone || booking.phoneNumber || 'N/A',
+      userId: auth.currentUser?.uid || 'unknown',
+      userPhone: booking.phoneNumber || 'N/A',
       patientName: booking.patientName,
       pickupLocation: booking.pickupLocation,
       dropLocation: booking.dropLocation || null,
@@ -218,6 +220,12 @@ export const acceptBooking = async (
       routePolyline: [],
       distance: null,
       eta: null,
+      driverLocation: driverLocation || null, // Add driver's current location
+    });
+
+    // Update booking with tripId
+    await updateDoc(doc(db, "bookings", booking.id), {
+      tripId: tripRef.id,
     });
 
     // Set current trip id on driver profile
@@ -261,35 +269,25 @@ export const startTrip = async (driverId: string, tripId: string) => {
 
     const trip = { id: tripSnap.id, ...tripSnap.data() } as Trip;
 
-    // Get directions
-    const directions = await getDirections(trip.pickupLocation, trip.dropLocation || trip.pickupLocation);
-    if (directions) {
-      await updateDoc(tripRef, {
-        status: "in-progress",
-        startedAt: Date.now(),
-        routePolyline: directions.polyline,
-        distance: directions.distance,
-        eta: directions.eta,
-      });
+    // Generate OTP for verification
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-      // Update booking
-      await updateDoc(doc(db, "bookings", trip.bookingId), {
-        status: "in-progress",
-        distance: directions.distance,
-        eta: directions.eta,
-      });
-    } else {
-      // Fallback without directions
-      await updateDoc(tripRef, {
-        status: "in-progress",
-        startedAt: Date.now(),
-      });
-      await updateDoc(doc(db, "bookings", trip.bookingId), {
-        status: "in-progress",
-      });
-    }
+    // Update trip status to arrived (not in-progress yet - waiting for OTP)
+    await updateDoc(tripRef, {
+      status: "arrived",
+      arrivedAt: Date.now(),
+      otp: otp,
+      otpGeneratedAt: Date.now(),
+    });
 
-    console.log("Trip started:", tripId);
+    // Update booking status to arrived
+    await updateDoc(doc(db, "bookings", trip.bookingId), {
+      status: "arrived",
+      arrivedAt: Date.now(),
+      otp: otp,
+    });
+
+    console.log("Driver arrived at pickup location. OTP:", otp);
   } catch (err) {
     console.log("Start trip error:", err);
   }
@@ -300,7 +298,19 @@ export const startTrip = async (driverId: string, tripId: string) => {
 // ==============================
 export const completeTrip = async (driverId: string, tripId: string) => {
   try {
-    await updateDoc(doc(db, "trips", tripId), {
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+    if (!tripSnap.exists()) return;
+
+    const trip = { id: tripSnap.id, ...tripSnap.data() } as Trip;
+
+    await updateDoc(tripRef, {
+      status: "completed",
+      completedAt: Date.now(),
+    });
+
+    // Update booking to completed
+    await updateDoc(doc(db, "bookings", trip.bookingId), {
       status: "completed",
       completedAt: Date.now(),
     });
@@ -313,6 +323,50 @@ export const completeTrip = async (driverId: string, tripId: string) => {
     console.log("Trip completed:", tripId);
   } catch (err) {
     console.log("Complete trip error:", err);
+  }
+};
+
+// ==============================
+// VERIFY OTP & START IN-PROGRESS
+// ==============================
+export const verifyOtpAndStartTrip = async (tripId: string, bookingId: string, otpInput: string) => {
+  try {
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+    if (!tripSnap.exists()) throw new Error("Trip not found");
+
+    const trip = tripSnap.data();
+    const storedOtp = trip.otp;
+
+    if (storedOtp !== otpInput) {
+      throw new Error("Invalid OTP");
+    }
+
+    // OTP verified - update status to in-progress
+    const directions = await getDirections(trip.pickupLocation, trip.dropLocation || trip.pickupLocation);
+    
+    await updateDoc(tripRef, {
+      status: "in-progress",
+      startedAt: Date.now(),
+      otpVerifiedAt: Date.now(),
+      routePolyline: directions?.polyline || [],
+      distance: directions?.distance || null,
+      eta: directions?.eta || null,
+    });
+
+    // Update booking to in-progress
+    await updateDoc(doc(db, "bookings", bookingId), {
+      status: "in-progress",
+      startedAt: Date.now(),
+      otpVerifiedAt: Date.now(),
+      distance: directions?.distance || null,
+      eta: directions?.eta || null,
+    });
+
+    console.log("OTP verified and trip started:", tripId);
+  } catch (err) {
+    console.log("Verify OTP error:", err);
+    throw err;
   }
 };
 

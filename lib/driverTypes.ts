@@ -33,6 +33,7 @@ export interface GeoLocation {
 export type BookingStatus = 
   | "searching"
   | "accepted"
+  | "arrived"
   | "in-progress"
   | "completed"
   | "cancelled";
@@ -51,9 +52,15 @@ export interface Booking {
   driverPhone?: string;
   distance?: number; // km
   eta?: number; // minutes
+  tripId?: string;
+  otp?: string;
   requestedAt: Timestamp; // timestamp
+  arrivedAt?: number;
   startedAt?: number;
+  otpVerifiedAt?: number;
   completedAt?: number;
+  cancelledAt?: number;
+  cancelledBy?: string;
 }
 
 // ==============================
