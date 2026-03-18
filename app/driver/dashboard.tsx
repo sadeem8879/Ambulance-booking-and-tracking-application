@@ -238,7 +238,7 @@ export default function DriverDashboard() {
       
       Alert.alert("Trip Started", "Safe journey!");
       // Navigate to tracking screen
-      router.push(`/driver/tracklocation?id=${currentTrip.bookingId}`);
+      router.push(`/driver/tracklocation?id=${currentTrip.bookingId}&bookingId=${currentTrip.bookingId}`);
     } catch (error) {
       console.error("Start trip error:", error);
       Alert.alert("Error", "Failed to start trip");

@@ -5,12 +5,12 @@ import * as Location from "expo-location";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    View
+  ActivityIndicator,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View
 } from "react-native";
 import { GeoLocation } from "../../lib/driverTypes";
 import { db } from "../../services/firebase";
@@ -159,7 +159,8 @@ export const getCurrentLocation = async (): Promise<GeoLocation | null> => {
 // TRACKING COMPONENT
 // ==============================
 export default function Tracking() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
+  const bookingId = (params.id ?? params.bookingId) as string | undefined;
   const mapRef = useRef<any>(null);
 
   const [driverLocation, setDriverLocation] = useState<LocationType | null>(null);
@@ -195,19 +196,30 @@ export default function Tracking() {
   // FIRESTORE LISTENER
   // ==============================
   useEffect(() => {
-    if (!id) return;
+    if (!bookingId) {
+      setLoading(false);
+      setStatus("Booking not found");
+      return;
+    }
 
-    const bookingRef = doc(db, "bookings", String(id));
+    const bookingRef = doc(db, "bookings", String(bookingId));
     const unsubscribe = onSnapshot(bookingRef, (snapshot) => {
       const data: any = snapshot.data();
-      if (!data) return;
+      if (!data) {
+        setLoading(false);
+        setStatus("Booking not found");
+        return;
+      }
 
-      // USER LOCATION (from pickupLocation in booking)
-      if (data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
-        setUserLocation({
-          latitude: data.pickupLocation.latitude,
-          longitude: data.pickupLocation.longitude,
-        });
+      // USER LOCATION (from pickupLocation in booking, fallback to latitude/longitude)
+      const bookingUserLocation = data.pickupLocation?.latitude && data.pickupLocation?.longitude
+        ? { latitude: data.pickupLocation.latitude, longitude: data.pickupLocation.longitude }
+        : data.latitude && data.longitude
+        ? { latitude: data.latitude, longitude: data.longitude }
+        : null;
+
+      if (bookingUserLocation) {
+        setUserLocation(bookingUserLocation);
       }
 
       // DRIVER LOCATION
@@ -221,13 +233,13 @@ export default function Tracking() {
       // STATUS
       if (data.status) setStatus(data.status);
 
-      // DISTANCE & ETA
-      if (data.driverLocation && data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
+      // DISTANCE & ETA (use resolved user location if available)
+      if (data.driverLocation && bookingUserLocation) {
         const dist = calculateDistance(
           data.driverLocation.latitude,
           data.driverLocation.longitude,
-          data.pickupLocation.latitude,
-          data.pickupLocation.longitude
+          bookingUserLocation.latitude,
+          bookingUserLocation.longitude
         );
         setDistance(dist);
         const avgSpeed = 40; // km/h average
@@ -236,10 +248,10 @@ export default function Tracking() {
       }
 
       // AUTO ZOOM
-      if (mapRef.current && data.driverLocation && data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
+      if (mapRef.current && data.driverLocation && bookingUserLocation) {
         mapRef.current.fitToCoordinates(
           [
-            { latitude: data.pickupLocation.latitude, longitude: data.pickupLocation.longitude },
+            { latitude: bookingUserLocation.latitude, longitude: bookingUserLocation.longitude },
             data.driverLocation,
           ],
           { edgePadding: { top: 120, right: 120, bottom: 120, left: 120 }, animated: true }
@@ -250,16 +262,28 @@ export default function Tracking() {
     });
 
     return () => unsubscribe();
-  }, [id]);
+  }, [bookingId]);
 
   // ==============================
-  // LOADING SCREEN
+  // LOADING / ERROR SCREEN
   // ==============================
-  if (loading || !userLocation) {
+  const hasLocation = !!userLocation || !!driverLocation;
+
+  if (loading) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#e53935" />
         <Text style={{ marginTop: 10 }}>Loading trip details...</Text>
+      </View>
+    );
+  }
+
+  if (!hasLocation) {
+    return (
+      <View style={styles.loader}>
+        <Text style={{ marginTop: 10, textAlign: "center" }}>
+          Unable to load trip location. Please go back and try again.
+        </Text>
       </View>
     );
   }
@@ -271,8 +295,8 @@ export default function Tracking() {
           ref={mapRef}
           style={styles.map}
           initialRegion={{
-            latitude: userLocation.latitude,
-            longitude: userLocation.longitude,
+            latitude: userLocation?.latitude ?? driverLocation?.latitude ?? 37.78825,
+            longitude: userLocation?.longitude ?? driverLocation?.longitude ?? -122.4324,
             latitudeDelta: 0.02,
             longitudeDelta: 0.02,
           }}
