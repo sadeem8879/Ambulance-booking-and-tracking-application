@@ -5,12 +5,12 @@ import * as Location from "expo-location";
 import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    View
 } from "react-native";
 import { GeoLocation } from "../../lib/driverTypes";
 import { db } from "../../services/firebase";
@@ -202,9 +202,12 @@ export default function Tracking() {
       const data: any = snapshot.data();
       if (!data) return;
 
-      // USER LOCATION
-      if (data.latitude && data.longitude) {
-        setUserLocation({ latitude: data.latitude, longitude: data.longitude });
+      // USER LOCATION (from pickupLocation in booking)
+      if (data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
+        setUserLocation({
+          latitude: data.pickupLocation.latitude,
+          longitude: data.pickupLocation.longitude,
+        });
       }
 
       // DRIVER LOCATION
@@ -219,12 +222,12 @@ export default function Tracking() {
       if (data.status) setStatus(data.status);
 
       // DISTANCE & ETA
-      if (data.driverLocation && data.latitude) {
+      if (data.driverLocation && data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
         const dist = calculateDistance(
           data.driverLocation.latitude,
           data.driverLocation.longitude,
-          data.latitude,
-          data.longitude
+          data.pickupLocation.latitude,
+          data.pickupLocation.longitude
         );
         setDistance(dist);
         const avgSpeed = 40; // km/h average
@@ -233,10 +236,10 @@ export default function Tracking() {
       }
 
       // AUTO ZOOM
-      if (mapRef.current && data.driverLocation && data.latitude) {
+      if (mapRef.current && data.driverLocation && data.pickupLocation?.latitude && data.pickupLocation?.longitude) {
         mapRef.current.fitToCoordinates(
           [
-            { latitude: data.latitude, longitude: data.longitude },
+            { latitude: data.pickupLocation.latitude, longitude: data.pickupLocation.longitude },
             data.driverLocation,
           ],
           { edgePadding: { top: 120, right: 120, bottom: 120, left: 120 }, animated: true }
@@ -256,7 +259,7 @@ export default function Tracking() {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#e53935" />
-        <Text style={{ marginTop: 10 }}>Finding nearest ambulance...</Text>
+        <Text style={{ marginTop: 10 }}>Loading trip details...</Text>
       </View>
     );
   }
