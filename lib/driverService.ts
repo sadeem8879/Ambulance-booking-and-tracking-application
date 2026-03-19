@@ -40,11 +40,13 @@ export const goOnline = async (driverId: string): Promise<void> => {
 // ==============================
 export const goOffline = async (driverId: string): Promise<void> => {
   try {
-    // Update Firestore status
+    // ✅ Update ONLY the online status - PRESERVE currentTripId
+    // The trip is still active even if the driver is offline
+    // Trip data should only be cleared when explicitly completed or cancelled
     await updateDoc(doc(db, "drivers", driverId), {
       online: false,
       lastOnline: Date.now(),
-      currentTripId: null,
+      // DO NOT clear currentTripId here - driver may have an active trip
     });
 
     // Stop GPS tracking
@@ -108,6 +110,56 @@ export const calculateDistance = (loc1: GeoLocation, loc2: GeoLocation): number 
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+};
+
+// ==============================
+// CHECK IF DRIVER REACHED DESTINATION (Within 50m)
+// ==============================
+export const checkIfReachedDestination = (driverLocation: GeoLocation, destinationLocation: GeoLocation): boolean => {
+  const distanceKm = calculateDistance(driverLocation, destinationLocation);
+  const distanceMeters = distanceKm * 1000;
+  return distanceMeters <= 50; // 50 meters threshold
+};
+
+// ==============================
+// AUTO-MARK AS ARRIVED (When within 50m)
+// ==============================
+export const autoMarkAsArrived = async (tripId: string, driverLocation: GeoLocation, destinationLocation: GeoLocation | null): Promise<boolean> => {
+  try {
+    if (!destinationLocation) return false;
+    
+    const hasReached = checkIfReachedDestination(driverLocation, destinationLocation);
+    
+    if (hasReached) {
+      const tripRef = doc(db, "trips", tripId);
+      const tripSnap = await getDoc(tripRef);
+      const tripData = tripSnap.data();
+      
+      // Only auto-mark if not already arrived or in-progress
+      if (tripData && tripData.status === "accepted") {
+        // Mark as arrived (OTP already generated at acceptance)
+        await updateDoc(tripRef, {
+          status: "arrived",
+          arrivedAt: Date.now(),
+        });
+        
+        // Also update booking
+        if (tripData.bookingId) {
+          await updateDoc(doc(db, "bookings", tripData.bookingId), {
+            status: "arrived",
+            arrivedAt: Date.now(),
+          });
+        }
+        
+        console.log("✅ Auto-marked as ARRIVED");
+        return true;
+      }
+    }
+    return false;
+  } catch (error) {
+    console.error("Auto-arrive error:", error);
+    return false;
+  }
 };
 
 // ==============================
@@ -193,7 +245,10 @@ export const acceptBooking = async (
     const driverName = driverData?.name || "Driver";
     const driverPhone = driverData?.phone || auth.currentUser?.phoneNumber || "N/A";
 
-    // Mark booking as accepted (and update initial driver location if available)
+    // Re-use existing booking OTP if provided, otherwise generate once
+    const otp = booking.otp || Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Mark booking as accepted and store OTP
     await updateDoc(doc(db, "bookings", booking.id), {
       status: "accepted",
       driverId,
@@ -201,9 +256,10 @@ export const acceptBooking = async (
       driverPhone,
       driverLocation: driverLocation || null,
       lastLocationUpdate: Date.now(),
+      otp: otp,
     });
 
-    // Create a trip record
+    // Create a trip record with OTP
     const tripRef = await addDoc(collection(db, "trips"), {
       bookingId: booking.id,
       driverId,
@@ -220,7 +276,8 @@ export const acceptBooking = async (
       routePolyline: [],
       distance: null,
       eta: null,
-      driverLocation: driverLocation || null, // Add driver's current location
+      driverLocation: driverLocation || null,
+      otp: otp, // 🔐 OTP also stored in trip
     });
 
     // Update booking with tripId
@@ -250,7 +307,7 @@ export const acceptBooking = async (
       }
     }
 
-    console.log("Booking accepted & trip created:", tripRef.id);
+    console.log("✅ Booking accepted & OTP generated:", otp);
   } catch (err) {
     console.log("Accept booking error:", err);
     throw err;
@@ -308,10 +365,28 @@ export const startTrip = async (driverId: string, tripId: string) => {
 // ==============================
 export const completeTrip = async (driverId: string, tripId: string) => {
   try {
-    await updateDoc(doc(db, "trips", tripId), {
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+    const tripData = tripSnap.data();
+
+    // Guard condition
+    if (!tripSnap.exists() || !tripData) {
+      throw new Error("Trip not found");
+    }
+
+    const bookingId = tripData.bookingId as string | undefined;
+
+    await updateDoc(tripRef, {
       status: "completed",
       completedAt: Date.now(),
     });
+
+    if (bookingId) {
+      await updateDoc(doc(db, "bookings", bookingId), {
+        status: "completed",
+        completedAt: Date.now(),
+      });
+    }
 
     // Remove currentTripId from driver
     await updateDoc(doc(db, "drivers", driverId), {
@@ -321,6 +396,7 @@ export const completeTrip = async (driverId: string, tripId: string) => {
     console.log("Trip completed:", tripId);
   } catch (err) {
     console.log("Complete trip error:", err);
+    throw err;
   }
 };
 
@@ -422,4 +498,55 @@ export const autoAcceptNearestBooking = async (
   }
 
   return null;
+};
+
+// ==============================
+// VERIFY OTP AND START TRIP
+// ==============================
+export const verifyOtpAndStartTrip = async (
+  tripId: string,
+  bookingId: string,
+  otpInput: string
+): Promise<void> => {
+  try {
+    // Get booking to verify OTP
+    const bookingRef = doc(db, "bookings", bookingId);
+    const bookingSnap = await getDoc(bookingRef);
+
+    if (!bookingSnap.exists()) {
+      throw new Error("Booking not found");
+    }
+
+    const bookingData = bookingSnap.data();
+    const correctOTP = bookingData.otp;
+
+    // Verify OTP matches
+    if (otpInput !== correctOTP) {
+      throw new Error("Invalid OTP. Please try again.");
+    }
+
+    // Update booking status to in-progress
+    await updateDoc(bookingRef, {
+      status: "in-progress",
+      otpVerifiedAt: Date.now(),
+      startedAt: Date.now(),
+    });
+
+    // Update trip status to in-progress
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+
+    if (tripSnap.exists()) {
+      await updateDoc(tripRef, {
+        status: "in-progress",
+        otpVerifiedAt: Date.now(),
+        startedAt: Date.now(),
+      });
+    }
+
+    console.log("OTP verified and trip started:", tripId);
+  } catch (err) {
+    console.error("Verify OTP error:", err);
+    throw err;
+  }
 };

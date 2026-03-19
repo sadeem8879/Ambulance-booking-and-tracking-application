@@ -58,7 +58,7 @@ export default function Dashboard() {
   // NAVIGATE TO TRACKING
   // ==============================
   const trackBooking = (bookingId: string) => {
-    router.push(`/tracking?bookingId=${bookingId}`);
+    router.push(`/user/tracking?bookingId=${bookingId}`);
   };
 
   if (loading) {

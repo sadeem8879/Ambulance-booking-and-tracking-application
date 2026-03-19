@@ -1,11 +1,20 @@
 import { Picker } from '@react-native-picker/picker';
-import * as Location from "expo-location";
 import { router } from "expo-router";
 import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { GeoLocation } from "../../lib/driverTypes";
+import {
+    calculateCompleteFare,
+    validateFareInput
+} from "../../lib/fareCalculationService";
+import {
+    calculateDistance,
+    geocodeAddress,
+    getCurrentLocation as getDeviceCurrentLocation,
+    getETA
+} from "../../lib/locationService";
 import { auth, db } from "../../services/firebase";
 
 const emergencyTypes = [
@@ -30,28 +39,16 @@ export default function Booking() {
       }
       setAddressLoading(true);
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert("Permission Denied", "Location permission is required to use address search");
-          setAddressLoading(false);
-          return;
-        }
-        const results = await Location.geocodeAsync(address);
-        if (results.length === 0) {
+        const location = await geocodeAddress(address);
+        if (!location) {
           Alert.alert("Not Found", "Could not find location for the given address.");
           setAddressLoading(false);
           return;
         }
-        const loc = results[0];
-        const newLocation = {
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          timestamp: Date.now(),
-        };
-        setPickupLocation(newLocation);
+        setPickupLocation(location);
         setMapRegion({
-          latitude: loc.latitude,
-          longitude: loc.longitude,
+          latitude: location.latitude,
+          longitude: location.longitude,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         });
@@ -67,51 +64,121 @@ export default function Booking() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [pickupLocation, setPickupLocation] = useState<GeoLocation | null>(null);
+  const [destinationLocation, setDestinationLocation] = useState<GeoLocation | null>(null);
+  const [destinationAddress, setDestinationAddress] = useState("");
+  const [destinationAddressLoading, setDestinationAddressLoading] = useState(false);
+  const [distanceKm, setDistanceKm] = useState<number>(0);
+  const [estimatedFareAmount, setEstimatedFareAmount] = useState<number>(0);
+  const [estimatedETA, setEstimatedETA] = useState<number>(0);
+  const [fareDetails, setFareDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
+    latitude: 28.7041,
+    longitude: 77.1025,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
 
   // ==============================
-  // AUTO GET CURRENT LOCATION ON MOUNT
+  // AUTO GET CURRENT LOCATION ON MOUNT & UPDATE FARE
   // ==============================
   useEffect(() => {
-    getCurrentLocation();
+    getCurrentLocationOnMount();
   }, []);
 
-  const getCurrentLocation = async () => {
+  // ==============================
+  // UPDATE FARE & ETA WHEN LOCATIONS CHANGE
+  // ==============================
+  useEffect(() => {
+    if (pickupLocation && destinationLocation) {
+      calculateAndUpdateFare();
+    } else {
+      setDistanceKm(0);
+      setEstimatedFareAmount(0);
+      setEstimatedETA(0);
+      setFareDetails(null);
+    }
+  }, [pickupLocation, destinationLocation, emergency]);
+
+  const getCurrentLocationOnMount = async () => {
     setLoading(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission Denied", "Location permission is required to book ambulance");
-        return;
+      const location = await getDeviceCurrentLocation();
+      if (location) {
+        setPickupLocation(location);
+        setMapRegion({
+          latitude: location.latitude,
+          longitude: location.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
+      } else {
+        Alert.alert("Location Access", "Could not access your location. Please enable location services.");
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const newLocation = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        timestamp: Date.now(),
-      };
-
-      setPickupLocation(newLocation);
-      setMapRegion({
-        ...newLocation,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      });
     } catch (error) {
       console.error("Get location error:", error);
       Alert.alert("Error", "Failed to get location");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePickupLocationPress = () => {
+    getCurrentLocationOnMount();
+  };
+
+  const calculateAndUpdateFare = () => {
+    if (!pickupLocation || !destinationLocation) return;
+
+    try {
+      const distance = calculateDistance(pickupLocation, destinationLocation);
+
+      // Validate distance
+      const validation = validateFareInput(distance, emergency);
+      if (!validation.valid) {
+        console.warn("Distance validation:", validation.error);
+        return;
+      }
+
+      // Calculate fare with full breakdown
+      const fareComponents = calculateCompleteFare(distance, emergency, 0);
+
+      // Calculate ETA
+      const eta = getETA(distance);
+
+      setDistanceKm(distance);
+      setEstimatedFareAmount(fareComponents.totalFare);
+      setEstimatedETA(eta);
+      setFareDetails(fareComponents);
+    } catch (error) {
+      console.error("Fare calculation error:", error);
+      // Set default fare if calculation fails
+      setEstimatedFareAmount(50); // Base fare
+    }
+  };
+
+  // ==============================
+  // GEOCODE DESTINATION ADDRESS
+  // ==============================
+  const handleDestinationAddressToLocation = async () => {
+    if (!destinationAddress.trim()) {
+      Alert.alert("Enter Address", "Please enter destination address/hospital name.");
+      return;
+    }
+    setDestinationAddressLoading(true);
+    try {
+      const location = await geocodeAddress(destinationAddress);
+      if (!location) {
+        Alert.alert("Not Found", "Could not find location for the given address.");
+        setDestinationAddressLoading(false);
+        return;
+      }
+      setDestinationLocation(location);
+    } catch (err) {
+      console.error("Geocode error:", err);
+      Alert.alert("Error", "Failed to find location for address");
+    } finally {
+      setDestinationAddressLoading(false);
     }
   };
 
@@ -132,8 +199,8 @@ export default function Booking() {
   // REQUEST AMBULANCE
   // ==============================
   const requestAmbulance = async () => {
-    if (!patientName || !emergency || !phoneNumber || !pickupLocation) {
-      Alert.alert("Missing Info", "Please fill all required fields and set location");
+    if (!patientName || !emergency || !phoneNumber || !pickupLocation || !destinationLocation) {
+      Alert.alert("Missing Info", "Please fill all required fields and set both pickup and destination locations");
       return;
     }
 
@@ -142,26 +209,43 @@ export default function Booking() {
       return;
     }
 
+    if (estimatedFareAmount <= 0) {
+      Alert.alert("Invalid Fare", "Please ensure distance is calculated correctly");
+      return;
+    }
+
     try {
       // Get user profile for contact info
       const userRef = doc(db, "users", auth.currentUser.uid);
       const userSnap = await getDoc(userRef);
       const userData = userSnap.data();
-      const userPhone = userData?.phone || phoneNumber; // fallback to entered phone
+      const userPhone = userData?.phone || phoneNumber;
+
+      const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
 
       const bookingRef = await addDoc(collection(db, "bookings"), {
         userId: auth.currentUser.uid,
         userPhone: userPhone,
         patientName: patientName,
         emergency: emergency,
-        phoneNumber: phoneNumber, // patient's phone
+        phoneNumber: phoneNumber,
         additionalNotes: additionalNotes,
         pickupLocation: pickupLocation,
+        destinationLocation: destinationLocation,
+        destinationAddress: destinationAddress,
+        distanceKm: distanceKm,
+        estimatedFare: estimatedFareAmount,
+        fareBreakdown: fareDetails, // Store complete fare breakdown
+        eta: estimatedETA,
         status: "searching",
+        otp: generatedOTP,
         requestedAt: Timestamp.now(),
       });
 
-      Alert.alert("Success", "🚑 Ambulance request sent! Driver will be assigned soon.");
+      Alert.alert(
+        "Success",
+        `🚑 Ambulance request sent!\n\n📍 Distance: ${distanceKm.toFixed(2)} km\n⏱️ ETA: ~${estimatedETA} min\n💵 Est Fare: ₹${estimatedFareAmount.toFixed(2)}`
+      );
 
       // Redirect to tracking screen
       router.push(`/user/tracking?bookingId=${bookingRef.id}`);
@@ -172,9 +256,15 @@ export default function Booking() {
       setPhoneNumber("");
       setAdditionalNotes("");
       setPickupLocation(null);
+      setDestinationLocation(null);
+      setDestinationAddress("");
+      setDistanceKm(0);
+      setEstimatedFareAmount(0);
+      setEstimatedETA(0);
+      setFareDetails(null);
     } catch (error) {
-      console.log(error);
-      Alert.alert("Error", "Something went wrong");
+      console.error("Booking error:", error);
+      Alert.alert("Error", "Failed to create booking. Please try again.");
     }
   };
 
@@ -239,7 +329,7 @@ export default function Booking() {
           <Text style={styles.label}>Pickup Location *</Text>
           <TouchableOpacity
             style={[styles.locationBtn, pickupLocation && styles.locationSet]}
-            onPress={getCurrentLocation}
+            onPress={handlePickupLocationPress}
             disabled={loading}
           >
             <Text style={styles.locationBtnText}>
@@ -251,6 +341,81 @@ export default function Booking() {
               Lat: {pickupLocation.latitude.toFixed(4)}, Lon: {pickupLocation.longitude.toFixed(4)}
             </Text>
           )}
+
+          {/* DESTINATION LOCATION SECTION */}
+          <Text style={styles.label}>🏥 Destination / Hospital Address *</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+            <TextInput
+              placeholder="Enter hospital or destination address"
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              value={destinationAddress}
+              onChangeText={setDestinationAddress}
+              editable={!destinationAddressLoading}
+            />
+            <TouchableOpacity
+              style={[styles.locationBtn, { marginLeft: 8, paddingHorizontal: 12, paddingVertical: 12 }]}
+              onPress={handleDestinationAddressToLocation}
+              disabled={destinationAddressLoading}
+            >
+              <Text style={styles.locationBtnText}>{destinationAddressLoading ? "..." : "Set"}</Text>
+            </TouchableOpacity>
+          </View>
+          {destinationLocation && (
+            <Text style={styles.locationText}>
+              Lat: {destinationLocation.latitude.toFixed(4)}, Lon: {destinationLocation.longitude.toFixed(4)}
+            </Text>
+          )}
+
+          {/* FARE SUMMARY - DETAILED BREAKDOWN */}
+          {pickupLocation && destinationLocation && (
+            <View style={styles.fareSummary}>
+              <Text style={styles.fareSummaryTitle}>💵 Fare Breakdown</Text>
+              
+              {/* Distance & ETA */}
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>📍 Distance:</Text>
+                <Text style={styles.fareValue}>{distanceKm.toFixed(2)} km</Text>
+              </View>
+              <View style={styles.fareRow}>
+                <Text style={styles.fareLabel}>⏱️ Est. Time:</Text>
+                <Text style={styles.fareValue}>~{estimatedETA} min</Text>
+              </View>
+
+              {/* Fare Components */}
+              <View style={styles.breakdownDivider} />
+              
+              {fareDetails && (
+                <>
+                  <View style={styles.fareRow}>
+                    <Text style={styles.fareLabel}>Base Fare:</Text>
+                    <Text style={styles.fareValue}>₹{fareDetails.baseFare.toFixed(2)}</Text>
+                  </View>
+
+                  {fareDetails.distanceCharge > 0 && (
+                    <View style={styles.fareRow}>
+                      <Text style={styles.fareLabel}>Distance Charge:</Text>
+                      <Text style={styles.fareValue}>₹{fareDetails.distanceCharge.toFixed(2)}</Text>
+                    </View>
+                  )}
+
+                  {fareDetails.emergencySurcharge > 0 && (
+                    <View style={styles.fareRow}>
+                      <Text style={styles.fareLabel}>Emergency Surcharge:</Text>
+                      <Text style={[styles.fareValue, styles.surgchargeText]}>₹{fareDetails.emergencySurcharge.toFixed(2)}</Text>
+                    </View>
+                  )}
+
+                  <View style={[styles.fareRow, styles.fareTotal]}>
+                    <Text style={styles.fareTotalLabel}>Total Fare:</Text>
+                    <Text style={styles.fareTotalValue}>₹{fareDetails.totalFare.toFixed(2)}</Text>
+                  </View>
+                </>
+              )}
+
+              <Text style={styles.fareNote}>*Final amount based on actual distance traveled</Text>
+            </View>
+          )}
+
           {/* Map for Location Selection */}
           <View style={styles.mapContainer}>
             <MapView
@@ -406,6 +571,74 @@ const styles = StyleSheet.create({
   buttonText:{
     color:"#fff",
     fontSize:18,
+    fontWeight:"bold"
+  },
+  fareSummary:{
+    backgroundColor:"#FFF9C4",
+    borderRadius:12,
+    padding:16,
+    marginBottom:20,
+    borderLeftWidth:4,
+    borderLeftColor:"#FBC02D",
+    shadowColor:"#000",
+    shadowOpacity:0.1,
+    shadowOffset:{width:0,height:2},
+    shadowRadius:3,
+    elevation:3
+  },
+  fareSummaryTitle:{
+    fontSize:16,
+    fontWeight:"bold",
+    color:"#F57F17",
+    marginBottom:12
+  },
+  fareRow:{
+    flexDirection:"row",
+    justifyContent:"space-between",
+    paddingVertical:8,
+    borderBottomWidth:1,
+    borderBottomColor:"#FFE082"
+  },
+  fareTotal:{
+    borderBottomWidth:2,
+    borderBottomColor:"#F57F17",
+    paddingVertical:12,
+    marginTop:4
+  },
+  fareLabel:{
+    fontSize:14,
+    color:"#666",
+    fontWeight:"600"
+  },
+  fareTotalLabel:{
+    fontSize:15,
+    color:"#F57F17",
+    fontWeight:"700"
+  },
+  fareValue:{
+    fontSize:14,
+    color:"#333",
+    fontWeight:"600"
+  },
+  fareTotalValue:{
+    fontSize:16,
+    color:"#F57F17",
+    fontWeight:"bold"
+  },
+  fareNote:{
+    fontSize:12,
+    color:"#E65100",
+    fontStyle:"italic",
+    marginTop:10,
+    textAlign:"center"
+  },
+  breakdownDivider:{
+    height:1,
+    backgroundColor:"#FFE082",
+    marginVertical:10
+  },
+  surgchargeText:{
+    color:"#E53935",
     fontWeight:"bold"
   }
 });

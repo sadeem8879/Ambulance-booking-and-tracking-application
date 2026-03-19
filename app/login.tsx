@@ -6,6 +6,9 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD } from "../constants/env";
 import { auth } from "../services/firebase";
 import { getUserRole } from "../services/getUserRole";
 
+// Helper function to add delay
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default function Login() {
   const { role: roleParam } = useLocalSearchParams();
   const role = typeof roleParam === "string" ? roleParam : undefined;
@@ -29,6 +32,18 @@ export default function Login() {
       }
 
       const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // ✅ Refresh user token to ensure auth state is fully synced
+      // This fixes the issue where Firestore queries fail after logout/login
+      try {
+        await result.user.getIdToken(true); // Force token refresh
+      } catch (e) {
+        console.log("⚠️ Token refresh skipped:", e);
+      }
+      
+      // Small delay to ensure Firestore query is in sync with auth state
+      await delay(300);
+      
       const actualRole = await getUserRole(result.user.uid);
 
       // Strict role enforcement

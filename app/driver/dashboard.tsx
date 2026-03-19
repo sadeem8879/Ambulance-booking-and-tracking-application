@@ -1,16 +1,19 @@
 import { router } from "expo-router";
 import { signOut } from "firebase/auth";
-import { doc, DocumentSnapshot, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import {
+    ActivityIndicator,
     Alert,
     FlatList,
     Linking,
+    Modal,
     StyleSheet,
     Switch,
     Text,
+    TextInput,
     TouchableOpacity,
-    View
+    View,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import {
@@ -44,6 +47,33 @@ export default function DriverDashboard() {
   const mapRef = useRef<MapView | null>(null);
 
   const [notifications, setNotifications] = useState<DriverNotification[]>([]);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpModalDismissed, setOtpModalDismissed] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  // ==============================
+  // AUTO-OPEN OTP MODAL WHEN ARRIVED
+  // ==============================
+  useEffect(() => {
+    if (
+      currentTrip?.status === "arrived" &&
+      !showOtpModal &&
+      !otpModalDismissed
+    ) {
+      console.log("🎯 Trip arrived! Auto-opening OTP modal");
+      setShowOtpModal(true);
+    }
+  }, [currentTrip?.status, otpModalDismissed]);
+
+  // ==============================
+  // RESET DISMISSED FLAG WHEN TRIP STATUS CHANGES
+  // ==============================
+  useEffect(() => {
+    if (currentTrip?.status !== "arrived") {
+      setOtpModalDismissed(false);
+    }
+  }, [currentTrip?.status]);
 
   // ==============================
   // SUBSCRIBE TO NOTIFICATIONS
@@ -105,20 +135,37 @@ export default function DriverDashboard() {
   }, [driverLocation, currentTrip?.status, currentTrip?.id, currentTrip?.bookingId]);
 
   // ==============================
-  // GET DRIVER PROFILE, LOCATION & CURRENT TRIP
+  // MAIN EFFECT: Handle driver auth, profile, and active trip
   // ==============================
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser) {
+      console.log("❌ No authenticated user");
+      setDriver(null);
+      setCurrentTrip(null);
+      return;
+    }
 
-    const driverRef = doc(db, "drivers", auth.currentUser.uid);
+    const driverId = auth.currentUser.uid;
+    console.log("🔵 Setting up subscriptions for driver:", driverId);
+
+    const driverRef = doc(db, "drivers", driverId);
     let tripUnsubscribe: (() => void) | null = null;
 
-    const unsubscribe = onSnapshot(driverRef, (driverDoc) => {
-      const data = driverDoc.data();
-      if (!data) return;
+    // Subscribe to driver profile
+    const driverUnsubscribe = onSnapshot(driverRef, async (driverDoc) => {
+      const driverData = driverDoc.data();
+      if (!driverData) {
+        console.log("❌ Driver document not found");
+        return;
+      }
 
-      const driverData = { id: driverDoc.id, ...data } as Driver;
-      setDriver(driverData);
+      console.log("📱 Driver data loaded:", {
+        name: driverData.name,
+        online: driverData.online,
+        currentTripId: driverData.currentTripId,
+      });
+
+      setDriver({ id: driverDoc.id, ...driverData } as Driver);
       setOnline(driverData.online || false);
 
       if (driverData.location) {
@@ -131,7 +178,6 @@ export default function DriverDashboard() {
           longitudeDelta: 0.01,
         }));
 
-        // Animate camera to latest driver location
         mapRef.current?.animateToRegion(
           {
             latitude: driverData.location.latitude,
@@ -143,19 +189,41 @@ export default function DriverDashboard() {
         );
       }
 
-      const tripId = driverData.currentTripId;
-      if (tripId) {
+      // Handle trip subscription
+      const currentTripId = driverData.currentTripId;
+      
+      if (currentTripId) {
+        console.log("🚑 Driver has active trip:", currentTripId);
+        
+        // Unsubscribe from old trip if exists
         if (tripUnsubscribe) {
           tripUnsubscribe();
-          tripUnsubscribe = null;
         }
-        const tripRef = doc(db, "trips", tripId);
-        tripUnsubscribe = onSnapshot(tripRef, (tripDoc: DocumentSnapshot) => {
-          if (tripDoc.exists()) {
-            setCurrentTrip({ id: tripDoc.id, ...tripDoc.data() } as Trip);
+
+        const tripRef = doc(db, "trips", currentTripId);
+
+        // Set up real-time listener for the trip
+        tripUnsubscribe = onSnapshot(
+          tripRef,
+          (tripDoc) => {
+            if (tripDoc.exists()) {
+              const tripData = tripDoc.data();
+              console.log("✅ Trip loaded:", {
+                status: tripData.status,
+                patient: tripData.patientName,
+              });
+              setCurrentTrip({ id: tripDoc.id, ...tripData } as Trip);
+            } else {
+              console.log("❌ Trip document not found:", currentTripId);
+              setCurrentTrip(null);
+            }
+          },
+          (error) => {
+            console.error("❌ Error subscribing to trip:", error);
           }
-        });
+        );
       } else {
+        console.log("ℹ️ No active trip for driver");
         setCurrentTrip(null);
         if (tripUnsubscribe) {
           tripUnsubscribe();
@@ -165,10 +233,13 @@ export default function DriverDashboard() {
     });
 
     return () => {
-      unsubscribe();
-      if (tripUnsubscribe) tripUnsubscribe();
+      console.log("🔴 Cleaning up driver subscriptions");
+      driverUnsubscribe();
+      if (tripUnsubscribe) {
+        tripUnsubscribe();
+      }
     };
-  }, []);
+  }, [auth.currentUser]);
 
   // ==============================
   // TOGGLE ONLINE / OFFLINE
@@ -312,18 +383,78 @@ export default function DriverDashboard() {
   };
 
   // ==============================
+  // VERIFY OTP
+  // ==============================
+  const handleVerifyOtp = async () => {
+    if (!otpInput || otpInput.length !== 4) {
+      Alert.alert("Invalid OTP", "Please enter a 4-digit OTP");
+      return;
+    }
+
+    if (!currentTrip || !currentTrip.otp) {
+      Alert.alert("Error", "OTP not found");
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      // Verify OTP matches
+      if (otpInput === currentTrip.otp) {
+        // Update trip to in-progress
+        await updateDoc(doc(db, "trips", currentTrip.id), {
+          status: "in-progress",
+          otpVerifiedAt: Date.now(),
+        });
+
+        // Update booking to in-progress
+        await updateDoc(doc(db, "bookings", currentTrip.bookingId), {
+          status: "in-progress",
+          otpVerifiedAt: Date.now(),
+        });
+
+        setShowOtpModal(false);
+        setOtpInput("");
+        Alert.alert("✅ Success!", "OTP verified! Trip started. Head to hospital.");
+      } else {
+        Alert.alert("❌ Wrong OTP", "OTP does not match. Please try again.");
+        setOtpInput("");
+      }
+    } catch (error) {
+      console.error("OTP verification error:", error);
+      Alert.alert("Error", "Failed to verify OTP");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // ==============================
   // LOGOUT
   // ==============================
   const handleLogout = async () => {
     if (!auth.currentUser) return;
 
     try {
+      // 1. Set driver offline
       await goOffline(auth.currentUser.uid);
+      
+      // 2. Small delay to ensure offline status is saved
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 3. Sign out from Firebase
       await signOut(auth);
-      router.replace("/login");
+      
+      // 4. Force navigation back to login with role selection
+      router.replace("/");
     } catch (error) {
       console.error("Logout error:", error);
-      Alert.alert("Error", "Failed to logout");
+      Alert.alert("Error", "Failed to logout properly. Please try closing and reopening the app.");
+      // Force navigation even if logout fails
+      try {
+        signOut(auth);
+        router.replace("/");
+      } catch (e: any) {
+        console.log("Force logout failed:", e);
+      }
     }
   };
 
@@ -377,6 +508,26 @@ export default function DriverDashboard() {
             />
           ))}
 
+          {/* Current Trip Pickup Location Marker */}
+          {currentTrip && currentTrip.pickupLocation && (
+            <Marker
+              coordinate={currentTrip.pickupLocation}
+              title={currentTrip.patientName}
+              description="Pickup Location"
+              pinColor="orange"
+            />
+          )}
+
+          {/* Current Trip Drop Location Marker */}
+          {currentTrip && currentTrip.dropLocation && (
+            <Marker
+              coordinate={currentTrip.dropLocation}
+              title="Drop Location"
+              description="Destination"
+              pinColor="green"
+            />
+          )}
+
           {/* Trip Route Polyline */}
           {currentTrip && currentTrip.routePolyline && (
             <Polyline
@@ -428,6 +579,12 @@ export default function DriverDashboard() {
           <Text style={styles.info}>Patient: {currentTrip.patientName}</Text>
           <Text style={styles.info}>User Phone: {currentTrip.userPhone}</Text>
           <Text style={styles.info}>Status: {currentTrip.status}</Text>
+          {currentTrip.status === "arrived" && (
+            <View style={styles.otpInfoBox}>
+              <Text style={styles.otpInfoText}>📍 Arrived at Pickup Location</Text>
+              <Text style={styles.otpInfoSubtext}>Waiting for passenger OTP verification</Text>
+            </View>
+          )}
           {currentTrip.distance != null && (
             <Text style={styles.info}>Distance: {currentTrip.distance.toFixed(1)} km</Text>
           )}
@@ -440,6 +597,40 @@ export default function DriverDashboard() {
           {currentTrip.status === "accepted" && (
             <TouchableOpacity style={styles.startBtn} onPress={handleStartTrip}>
               <Text style={styles.btnText}>Start Trip</Text>
+            </TouchableOpacity>
+          )}
+          {currentTrip.status === "accepted" && (
+            <TouchableOpacity 
+              style={styles.arrivedBtn}
+              onPress={async () => {
+                try {
+                  await updateDoc(doc(db, "trips", currentTrip.id), {
+                    status: "arrived",
+                    arrivedAt: Date.now(),
+                  });
+                  await updateDoc(doc(db, "bookings", currentTrip.bookingId), {
+                    status: "arrived",
+                    arrivedAt: Date.now(),
+                  });
+                  console.log("✅ Marked as arrived");
+                } catch (error) {
+                  console.error("Error marking arrived:", error);
+                  Alert.alert("Error", "Failed to mark as arrived");
+                }
+              }}
+            >
+              <Text style={styles.btnText}>📍 Mark as Arrived</Text>
+            </TouchableOpacity>
+          )}
+          {currentTrip.status === "arrived" && (
+            <TouchableOpacity
+              style={styles.startBtn}
+              onPress={() => {
+                setOtpModalDismissed(false);
+                setShowOtpModal(true);
+              }}
+            >
+              <Text style={styles.btnText}>🔐 Get Passenger OTP</Text>
             </TouchableOpacity>
           )}
           {currentTrip.status === "in-progress" && (
@@ -464,44 +655,107 @@ export default function DriverDashboard() {
   );
 
   return (
-    <FlatList
-      style={styles.container}
-      ListHeaderComponent={<ListHeader />}
-      ListEmptyComponent={
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text style={styles.noBookings}>No requests at the moment</Text>
-        </View>
-      }
-      data={bookings}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingBottom: 50 }}
-      renderItem={({ item }) => {
-        const hasLocation =
-          item.pickupLocation &&
-          typeof item.pickupLocation.latitude === "number" &&
-          typeof item.pickupLocation.longitude === "number";
-
-        return (
-          <View style={styles.card}>
-            <Text style={styles.patient}>Patient: {item.patientName}</Text>
-            <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
-            <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
-            <Text style={styles.location}>
-              Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
-            </Text>
-            <TouchableOpacity
-              style={[styles.acceptBtn, driver?.currentTripId && styles.disabledBtn]}
-              onPress={() => handleAcceptBooking(item)}
-              disabled={!hasLocation || !!driver?.currentTripId}
-            >
-              <Text style={styles.btnText}>
-                {!hasLocation ? "Invalid request" : driver?.currentTripId ? "On Active Trip" : "Accept Request"}
-              </Text>
-            </TouchableOpacity>
+    <View style={{ flex: 1 }}>
+      <FlatList
+        style={styles.container}
+        ListHeaderComponent={<ListHeader />}
+        ListEmptyComponent={
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={styles.noBookings}>No requests at the moment</Text>
           </View>
-        );
-      }}
-    />
+        }
+        data={bookings}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 50 }}
+        renderItem={({ item }) => {
+          const hasLocation =
+            item.pickupLocation &&
+            typeof item.pickupLocation.latitude === "number" &&
+            typeof item.pickupLocation.longitude === "number";
+
+          return (
+            <View style={styles.card}>
+              <Text style={styles.patient}>Patient: {item.patientName}</Text>
+              <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
+              <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
+              <Text style={styles.location}>
+                Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
+              </Text>
+              <TouchableOpacity
+                style={[styles.acceptBtn, driver?.currentTripId && styles.disabledBtn]}
+                onPress={() => handleAcceptBooking(item)}
+                disabled={!hasLocation || !!driver?.currentTripId}
+              >
+                <Text style={styles.btnText}>
+                  {!hasLocation ? "Invalid request" : driver?.currentTripId ? "On Active Trip" : "Accept Request"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+      />
+
+      {/* OTP VERIFICATION MODAL */}
+      <Modal
+      visible={showOtpModal && currentTrip?.status === "arrived"}
+      transparent={true}
+      animationType="slide"
+    >
+      <View style={styles.otpModalOverlay}>
+        <View style={styles.otpModalContent}>
+          <Text style={styles.otpModalTitle}>🔐 Verify Passenger</Text>
+          <Text style={styles.otpModalSubtitle}>
+            Ask the passenger to read the 4-digit OTP from their app screen and enter it below
+          </Text>
+
+          {/* Input Section Only - No OTP Display */}
+          <View style={styles.otpInputSection}>
+            <Text style={styles.otpInputLabel}>Enter OTP from Passenger:</Text>
+            <TextInput
+              style={styles.otpInput}
+              placeholder="----"
+              keyboardType="numeric"
+              maxLength={4}
+              value={otpInput}
+              onChangeText={setOtpInput}
+              placeholderTextColor="#999"
+              editable={!isVerifying}
+            />
+          </View>
+
+          {/* Verify Button */}
+          <TouchableOpacity
+            style={[styles.otpVerifyBtn, isVerifying && styles.otpVerifyBtnDisabled]}
+            onPress={handleVerifyOtp}
+            disabled={isVerifying || otpInput.length !== 4}
+          >
+            {isVerifying ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.otpVerifyBtnText}>✅ Verify & Start Trip</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Cancel Button */}
+          <TouchableOpacity
+            style={styles.otpCancelBtn}
+            onPress={() => {
+              setShowOtpModal(false);
+              setOtpInput("");
+              setOtpModalDismissed(true);
+            }}
+            disabled={isVerifying}
+          >
+            <Text style={styles.otpCancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.otpNote}>
+            ℹ️ The passenger sees the OTP in their app. Ask them to read it to you.
+          </Text>
+        </View>
+      </View>
+    </Modal>
+    </View>
   );
 }
 
@@ -676,6 +930,25 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 5,
   },
+  otpInfoBox: {
+    backgroundColor: "#fff8e1",
+    borderLeftWidth: 4,
+    borderLeftColor: "#fbc02d",
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 10,
+    borderRadius: 8,
+  },
+  otpInfoText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#f57c00",
+  },
+  otpInfoSubtext: {
+    fontSize: 12,
+    color: "#8d6e63",
+    marginTop: 4,
+  },
   tripTitle: {
     fontSize: 20,
     fontWeight: "bold",
@@ -704,6 +977,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
+  arrivedBtn: {
+    backgroundColor: "#2196F3",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
   completeBtn: {
     backgroundColor: "#4CAF50",
     padding: 12,
@@ -721,5 +1001,129 @@ const styles = StyleSheet.create({
   cancelTripText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  otpModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  otpModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 30,
+    width: "90%",
+    maxHeight: "90%",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  otpModalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#e53935",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+  otpModalSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  otpDisplaySection: {
+    backgroundColor: "#f0f8f4",
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    alignItems: "center",
+  },
+  otpLabel: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 10,
+    fontWeight: "600",
+  },
+  otpCodeBox: {
+    backgroundColor: "#fff",
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+    marginBottom: 10,
+  },
+  otpCode: {
+    fontSize: 36,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    textAlign: "center",
+    letterSpacing: 8,
+  },
+  otpCopyHint: {
+    fontSize: 12,
+    color: "#666",
+    fontStyle: "italic",
+    textAlign: "center",
+  },
+  otpInputSection: {
+    marginBottom: 20,
+  },
+  otpInputLabel: {
+    fontSize: 14,
+    color: "#333",
+    marginBottom: 8,
+    fontWeight: "600",
+  },
+  otpInput: {
+    borderWidth: 2,
+    borderColor: "#e53935",
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 28,
+    fontWeight: "bold",
+    textAlign: "center",
+    letterSpacing: 8,
+    color: "#333",
+  },
+  otpVerifyBtn: {
+    backgroundColor: "#4CAF50",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+    elevation: 3,
+  },
+  otpVerifyBtnDisabled: {
+    backgroundColor: "#ccc",
+  },
+  otpVerifyBtnText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  otpCancelBtn: {
+    borderWidth: 2,
+    borderColor: "#999",
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  otpCancelBtnText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#666",
+  },
+  otpNote: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });

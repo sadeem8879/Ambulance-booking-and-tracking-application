@@ -46,12 +46,16 @@ export interface Booking {
   additionalNotes?: string;
   pickupLocation: GeoLocation;
   dropLocation?: GeoLocation;
+  destinationLocation?: GeoLocation;
+  destinationAddress?: string;
   status: BookingStatus;
   driverId?: string;
   driverName?: string;
   driverPhone?: string;
-  distance?: number; // km
+  distance?: number; // km (driver to patient)
+  distanceKm?: number; // km (pickup to destination)
   eta?: number; // minutes
+  estimatedFare?: number; // fare amount
   tripId?: string;
   otp?: string;
   requestedAt: Timestamp; // timestamp
@@ -77,9 +81,14 @@ export interface Trip {
   patientName: string;
   pickupLocation: GeoLocation;
   dropLocation?: GeoLocation;
-  status: "accepted" | "in-progress" | "completed" | "cancelled";
+  destinationLocation?: GeoLocation;
+  destinationAddress?: string;
+  status: "accepted" | "arrived" | "in-progress" | "completed" | "cancelled";
+  otp?: string;
   routePolyline?: GeoLocation[]; // Path of driver
   distance?: number; // km
+  distanceKm?: number; // km (pickup to destination)
+  estimatedFare?: number; // fare amount
   eta?: number; // minutes
   startedAt?: number;
   completedAt?: number;

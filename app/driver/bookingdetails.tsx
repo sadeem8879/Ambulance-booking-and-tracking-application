@@ -68,13 +68,12 @@ export default function BookingDetails() {
     if (!booking) return;
 
     try {
-      // Generate 4-digit OTP
-      const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+      const resolvedOTP = booking.otp || Math.floor(1000 + Math.random() * 9000).toString();
 
       await updateDoc(doc(db, "bookings", booking.id), {
         status: "arrived",
         arrivedAt: Date.now(),
-        otp: generatedOTP,
+        otp: resolvedOTP,
       });
 
       // If trip exists, update it too
@@ -82,13 +81,13 @@ export default function BookingDetails() {
         await updateDoc(doc(db, "trips", booking.tripId), {
           status: "arrived",
           arrivedAt: Date.now(),
-          otp: generatedOTP,
+          otp: resolvedOTP,
         });
       }
 
-      setOtp(generatedOTP);
+      setOtp(resolvedOTP);
       setShowOTPModal(true);
-      Alert.alert("Success", "You've arrived! OTP generated for patient verification.");
+      Alert.alert("Success", "You've arrived! OTP set for patient verification.");
       fetchBooking();
     } catch (e) {
       console.log("Arrived error:", e);
@@ -117,10 +116,18 @@ export default function BookingDetails() {
       }
 
       setShowOTPModal(false);
-      Alert.alert("Trip Started", "Safe journey! Head to hospital.");
-      fetchBooking();
+      Alert.alert("Trip Started", "Safe journey! Head to hospital.", [
+        {
+          text: "OK",
+          onPress: () => {
+            // Navigate to tracking screen to show user location on map
+            router.push(`/driver/tracklocation?id=${booking.id}&bookingId=${booking.id}`);
+          }
+        }
+      ]);
     } catch (e) {
       console.log("Start trip error:", e);
+      Alert.alert("Error", "Failed to start trip");
     }
   };
 
