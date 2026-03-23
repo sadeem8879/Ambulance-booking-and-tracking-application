@@ -5,10 +5,8 @@ import React, { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
-    Linking,
     Modal,
     SafeAreaView,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -16,7 +14,6 @@ import {
     View
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import { checkArrivalSafety, generateGoogleMapsNavigationUrl } from "../../lib/driverService";
 import { GeoLocation } from "../../lib/driverTypes";
 import { db } from "../../services/firebase";
 
@@ -354,24 +351,6 @@ export default function Tracking() {
   }, [driverLocation, pickupLocation, destinationLocation]);
 
   // ==============================
-  // OPEN GOOGLE MAPS NAVIGATION
-  // ==============================
-  const handleOpenNavigation = () => {
-    if (!driverLocation || !pickupLocation) {
-      Alert.alert("Error", "Location data not available");
-      return;
-    }
-
-    try {
-      const mapsUrl = generateGoogleMapsNavigationUrl(driverLocation, pickupLocation);
-      Linking.openURL(mapsUrl);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      Alert.alert("Error", "Could not open navigation");
-    }
-  };
-
-  // ==============================
   // MARK AS ARRIVED (WITH DISTANCE VALIDATION)
   // ==============================
   const handleMarkAsArrived = async () => {
@@ -381,12 +360,17 @@ export default function Tracking() {
     }
 
     // ✅ DISTANCE VALIDATION - MUST BE WITHIN 100 METERS
-    const safetyCheck = checkArrivalSafety(driverLocation, pickupLocation);
+    const distanceMeters = calculateDistanceInMeters(
+      driverLocation.latitude,
+      driverLocation.longitude,
+      pickupLocation.latitude,
+      pickupLocation.longitude
+    );
 
-    if (!safetyCheck.canArrive) {
+    if (distanceMeters > 100) {
       Alert.alert(
         "❌ Too Far Away",
-        safetyCheck.message,
+        `You are ${Math.round(distanceMeters)}m away from pickup location.\n\nPlease get within 100m to mark as arrived.`,
         [{ text: "OK" }]
       );
       return;
@@ -563,82 +547,39 @@ export default function Tracking() {
       </MapView>
 
       {/* ===== INFO PANEL ===== */}
-      <View style={styles.infoPanelWrapper}>
-        <ScrollView style={styles.infoPanel} showsVerticalScrollIndicator={true}>
-          {/* KEY INFO HEADER - LIKE UBER */}
-          <View style={styles.keyInfoHeader}>
-            <View style={styles.fareBox}>
-              <Text style={styles.fareLabel}>Estimated Fare</Text>
-              <Text style={styles.fareAmount}>₹{estimatedFare.toFixed(2)}</Text>
+      <View style={styles.infoPanel}>
+        {/* PATIENT DETAILS */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👤 Patient Details</Text>
+          <Text style={styles.detailText}>Name: {patientName || "N/A"}</Text>
+          <Text style={styles.detailText}>Phone: {patientPhone || "N/A"}</Text>
+          {additionalNotes && (
+            <View style={styles.notesBox}>
+              <Text style={styles.notesLabel}>💬 Patient Notes:</Text>
+              <Text style={styles.notesText}>{additionalNotes}</Text>
             </View>
-            <View style={styles.distanceBox}>
-              <Text style={styles.distanceLabel}>Distance to Pickup</Text>
-              <Text style={styles.distanceAmount}>{distanceToPickup.toFixed(2)} km</Text>
-            </View>
-            <View style={styles.etaBox}>
-              <Text style={styles.etaLabel}>ETA</Text>
-              <Text style={styles.etaAmount}>{estimatedETA} min</Text>
-            </View>
-          </View>
+          )}
+        </View>
 
-          {/* PATIENT DETAILS */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>👤 Patient Details</Text>
-            <Text style={styles.detailText}>
-              <Text style={styles.label}>Name: </Text>
-              <Text style={styles.value}>{patientName || "N/A"}</Text>
-            </Text>
-            <Text style={styles.detailText}>
-              <Text style={styles.label}>Phone: </Text>
-              <Text style={styles.value}>{patientPhone || "N/A"}</Text>
-            </Text>
-            {additionalNotes && (
-              <View style={styles.notesBox}>
-                <Text style={styles.notesLabel}>💬 Patient Notes:</Text>
-                <Text style={styles.notesText}>{additionalNotes}</Text>
-              </View>
-            )}
-          </View>
+        {/* TRIP DETAILS */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🗺️ Trip Details</Text>
+          <Text style={styles.detailText}>
+            📍 Distance to Pickup: {distanceToPickup.toFixed(2)} km
+          </Text>
+          <Text style={styles.detailText}>⏱️ ETA: {estimatedETA} min</Text>
+          <Text style={styles.detailText}>
+            🛣️ Pickup→Hospital: {distancePickupToDestination.toFixed(2)} km
+          </Text>
+          <Text style={[styles.detailText, styles.fareText]}>
+            💵 Estimated Fare: ₹{estimatedFare.toFixed(2)}
+          </Text>
+        </View>
 
-          {/* PICKUP LOCATION */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>📍 Pickup Location</Text>
-            <Text style={styles.addressText}>
-              {pickupAddress || `${pickupLocation?.latitude.toFixed(4)}, ${pickupLocation?.longitude.toFixed(4)}`}
-            </Text>
-          </View>
-
-          {/* DESTINATION */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🏥 Destination (Hospital)</Text>
-            <Text style={styles.addressText}>
-              {destinationAddress || (destinationLocation ? `${destinationLocation.latitude.toFixed(4)}, ${destinationLocation.longitude.toFixed(4)}` : "N/A")}
-            </Text>
-          </View>
-
-          {/* TRIP DETAILS */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🗺️ Route Details</Text>
-            <Text style={styles.detailText}>
-              📍 Pickup → Hospital: {distancePickupToDestination.toFixed(2)} km
-            </Text>
-            <Text style={styles.detailText}>
-              ⏱️ Estimated Distance: {(distanceToPickup + distancePickupToDestination).toFixed(2)} km
-            </Text>
-          </View>
-
-          {/* ACTION BUTTONS */}
-          <View style={styles.buttonContainer}>
-            {/* NAVIGATION BUTTON (GOOGLE MAPS) */}
-            <TouchableOpacity
-              style={[styles.button, styles.navigationButton]}
-              onPress={handleOpenNavigation}
-            >
-              <Text style={styles.buttonText}>🗺️ Open Navigation</Text>
-            </TouchableOpacity>
-
-            {/* MARK AS ARRIVED BUTTON */}
-            {canMarkAsArrived && (
+        {/* ACTION BUTTONS */}
+        <View style={styles.buttonContainer}>
+          {/* MARK AS ARRIVED BUTTON */}
+          {canMarkAsArrived && (
             <TouchableOpacity
               style={[
                 styles.button,
@@ -649,7 +590,6 @@ export default function Tracking() {
               disabled={distanceToPickup > 0.1}
             >
               <Text style={styles.buttonText}>✓ Mark as Arrived</Text>
-              <Text style={styles.buttonSubtext}>(Within 100m to activate)</Text>
             </TouchableOpacity>
           )}
 
@@ -668,11 +608,10 @@ export default function Tracking() {
           {tripStatus === "in-progress" && (
             <View style={styles.successBox}>
               <Text style={styles.successText}>✅ Trip in Progress</Text>
-              <Text style={styles.successSubtext}>Head to {destinationAddress || "destination"}</Text>
+              <Text style={styles.successSubtext}>Head to {destinationAddress}</Text>
             </View>
           )}
-          </View>
-        </ScrollView>
+        </View>
       </View>
 
       {/* ===== OTP VERIFICATION MODAL ===== */}
@@ -766,28 +705,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f5f5f5",
   },
-  infoPanelWrapper: {
+  infoPanel: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: "55%",
-    minHeight: 120,
-    height: "55%",
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+    maxHeight: "50%",
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: -4 },
     shadowRadius: 8,
     elevation: 10,
-  },
-  infoPanel: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
   },
   section: {
     marginBottom: 12,
@@ -840,9 +774,6 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: "#2196F3",
-  },
-  navigationButton: {
-    backgroundColor: "#6A5ACD",
   },
   otpButton: {
     backgroundColor: "#FF9800",
@@ -949,97 +880,5 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 16,
   },
-  coordinatesText: {
-    fontSize: 12,
-    color: "#888",
-    fontFamily: "monospace",
-  },
-  // NEW UBER-LIKE STYLES
-  keyInfoHeader: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  fareBox: {
-    flex: 1,
-    backgroundColor: "#e8f5e9",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    borderLeftWidth: 4,
-    borderLeftColor: "#4CAF50",
-  },
-  fareLabel: {
-    fontSize: 11,
-    color: "#558b2f",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  fareAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#2e7d32",
-  },
-  distanceBox: {
-    flex: 1,
-    backgroundColor: "#e3f2fd",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    borderLeftWidth: 4,
-    borderLeftColor: "#2196F3",
-  },
-  distanceLabel: {
-    fontSize: 11,
-    color: "#1565c0",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  distanceAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1976D2",
-  },
-  etaBox: {
-    flex: 1,
-    backgroundColor: "#fff3e0",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    borderLeftWidth: 4,
-    borderLeftColor: "#FF9800",
-  },
-  etaLabel: {
-    fontSize: 11,
-    color: "#e65100",
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  etaAmount: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#F57C00",
-  },
-  label: {
-    fontWeight: "600",
-    color: "#666",
-  },
-  value: {
-    fontWeight: "400",
-    color: "#333",
-  },
-  addressText: {
-    fontSize: 14,
-    color: "#333",
-    fontWeight: "500",
-    lineHeight: 22,
-  },
-  buttonSubtext: {
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.8)",
-    marginTop: 2,
-  },
 });
+// bro still on driver screen theres no information is showing like fare , pickup location,destiantion location before when request has come n additional message if any . and when driver clicked on buttton marked as arrived even driver has not reached the pickup location its showing marked as arriveed .

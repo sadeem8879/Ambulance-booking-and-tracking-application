@@ -13,7 +13,8 @@ import {
     calculateDistance,
     geocodeAddress,
     getCurrentLocation as getDeviceCurrentLocation,
-    getETA
+    getETA,
+    reverseGeocodeLocation
 } from "../../lib/locationService";
 import { auth, db } from "../../services/firebase";
 
@@ -223,6 +224,30 @@ export default function Booking() {
 
       const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
 
+      // ✅ REVERSE GEOCODE PICKUP & DESTINATION ADDRESSES
+      let pickupAddressForBooking = "Getting location...";
+      let destinationAddressForBooking = destinationAddress || "Getting location...";
+
+      try {
+        const reversedPickup = await reverseGeocodeLocation(pickupLocation);
+        if (reversedPickup) {
+          pickupAddressForBooking = reversedPickup;
+        }
+      } catch (geocodeErr) {
+        console.warn("Pickup address reverse geocoding failed, using coordinates", geocodeErr);
+      }
+
+      try {
+        if (!destinationAddress || destinationAddress.trim() === "") {
+          const reversedDest = await reverseGeocodeLocation(destinationLocation);
+          if (reversedDest) {
+            destinationAddressForBooking = reversedDest;
+          }
+        }
+      } catch (geocodeErr) {
+        console.warn("Destination address reverse geocoding failed", geocodeErr);
+      }
+
       const bookingRef = await addDoc(collection(db, "bookings"), {
         userId: auth.currentUser.uid,
         userPhone: userPhone,
@@ -231,8 +256,9 @@ export default function Booking() {
         phoneNumber: phoneNumber,
         additionalNotes: additionalNotes,
         pickupLocation: pickupLocation,
+        pickupAddress: pickupAddressForBooking,
         destinationLocation: destinationLocation,
-        destinationAddress: destinationAddress,
+        destinationAddress: destinationAddressForBooking,
         distanceKm: distanceKm,
         estimatedFare: estimatedFareAmount,
         fareBreakdown: fareDetails, // Store complete fare breakdown

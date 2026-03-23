@@ -21,6 +21,7 @@ import {
     calculateDistance,
     completeTrip,
     getDirections,
+    getDistanceInMeters,
     goOffline,
     goOnline,
     subscribeNearbyBookings,
@@ -269,6 +270,20 @@ export default function DriverDashboard() {
     } catch (error) {
       console.error("Toggle online error:", error);
       Alert.alert("Error", "Failed to update status");
+    }
+  };
+
+  // ==============================
+  // GET TRIP STATUS COLOR
+  // ==============================
+  const getTripStatusColor = (status: string): string => {
+    switch(status) {
+      case "accepted": return "#2196F3";
+      case "arrived": return "#FF9800";
+      case "in-progress": return "#9C27B0";
+      case "completed": return "#4CAF50";
+      case "cancelled": return "#e53935";
+      default: return "#999";
     }
   };
 
@@ -575,35 +590,96 @@ export default function DriverDashboard() {
       {/* Active Trip */}
       {currentTrip && (
         <View style={styles.tripBox}>
-          <Text style={styles.tripTitle}>Current Trip</Text>
-          <Text style={styles.info}>Patient: {currentTrip.patientName}</Text>
-          <Text style={styles.info}>User Phone: {currentTrip.userPhone}</Text>
-          <Text style={styles.info}>Status: {currentTrip.status}</Text>
+          <Text style={styles.tripTitle}>🚑 Current Trip</Text>
+          
+          <View style={styles.tripInfoRow}>
+            <Text style={styles.tripLabel}>Patient Name</Text>
+            <Text style={styles.tripValue}>{currentTrip.patientName}</Text>
+          </View>
+          
+          <View style={styles.tripInfoRow}>
+            <Text style={styles.tripLabel}>Phone</Text>
+            <Text style={styles.tripValue}>{currentTrip.userPhone}</Text>
+          </View>
+
+          <View style={styles.tripInfoRow}>
+            <Text style={styles.tripLabel}>Status</Text>
+            <View style={[styles.statusBadge, { backgroundColor: getTripStatusColor(currentTrip.status) }]}>
+              <Text style={styles.statusBadgeText}>{currentTrip.status.toUpperCase()}</Text>
+            </View>
+          </View>
+
+          {currentTrip.estimatedFare && (
+            <View style={styles.tripInfoRow}>
+              <Text style={styles.tripLabel}>Estimated Fare</Text>
+              <Text style={styles.fareValue}>₹{currentTrip.estimatedFare.toFixed(2)}</Text>
+            </View>
+          )}
+
+          {currentTrip.distance != null && (
+            <View style={styles.tripInfoRow}>
+              <Text style={styles.tripLabel}>Distance to You</Text>
+              <Text style={styles.tripValue}>{currentTrip.distance.toFixed(2)} km</Text>
+            </View>
+          )}
+
+          {currentTrip.distanceKm != null && (
+            <View style={styles.tripInfoRow}>
+              <Text style={styles.tripLabel}>Pickup → Destination</Text>
+              <Text style={styles.tripValue}>{currentTrip.distanceKm.toFixed(2)} km</Text>
+            </View>
+          )}
+
+          {currentTrip.eta != null && (
+            <View style={styles.tripInfoRow}>
+              <Text style={styles.tripLabel}>ETA to Pickup</Text>
+              <Text style={styles.tripValue}>{currentTrip.eta} minutes</Text>
+            </View>
+          )}
+
           {currentTrip.status === "arrived" && (
             <View style={styles.otpInfoBox}>
-              <Text style={styles.otpInfoText}>📍 Arrived at Pickup Location</Text>
+              <Text style={styles.otpInfoText}>✅ Arrived at Pickup Location</Text>
               <Text style={styles.otpInfoSubtext}>Waiting for passenger OTP verification</Text>
             </View>
           )}
-          {currentTrip.distance != null && (
-            <Text style={styles.info}>Distance: {currentTrip.distance.toFixed(1)} km</Text>
+
+          {driverLocation && currentTrip.pickupLocation && currentTrip.status === "accepted" && (
+            <View style={styles.distanceWarningBox}>
+              <Text style={styles.distanceWarningText}>
+                ⚠️ Distance remaining before arrival: {Math.round(getDistanceInMeters(driverLocation, currentTrip.pickupLocation))} meters
+              </Text>
+            </View>
           )}
-          {currentTrip.eta != null && (
-            <Text style={styles.info}>ETA: {currentTrip.eta} min</Text>
-          )}
+
           <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${currentTrip.userPhone}`)}>
-            <Text style={styles.callText}>Call User</Text>
+            <Text style={styles.callText}>📞 Call Patient</Text>
           </TouchableOpacity>
-          {currentTrip.status === "accepted" && (
-            <TouchableOpacity style={styles.startBtn} onPress={handleStartTrip}>
-              <Text style={styles.btnText}>Start Trip</Text>
-            </TouchableOpacity>
-          )}
+          
           {currentTrip.status === "accepted" && (
             <TouchableOpacity 
               style={styles.arrivedBtn}
               onPress={async () => {
                 try {
+                  // ✅ VALIDATE: Check if driver is within 100m of pickup location
+                  if (!driverLocation) {
+                    Alert.alert("Location Error", "Unable to get your current location. Please enable GPS.");
+                    return;
+                  }
+
+                  const distanceMeters = getDistanceInMeters(driverLocation, currentTrip.pickupLocation);
+                  
+                  if (distanceMeters > 100) {
+                    const distanceKm = (distanceMeters / 1000).toFixed(2);
+                    Alert.alert(
+                      "⚠️ Not at Pickup Location",
+                      `You are ${distanceKm} km away from the pickup location.\n\nPlease drive closer before marking as arrived.\n\nDistance remaining: ${Math.round(distanceMeters)} meters`,
+                      [{ text: "OK" }]
+                    );
+                    return;
+                  }
+
+                  // ✅ Update status to arrived
                   await updateDoc(doc(db, "trips", currentTrip.id), {
                     status: "arrived",
                     arrivedAt: Date.now(),
@@ -612,6 +688,8 @@ export default function DriverDashboard() {
                     status: "arrived",
                     arrivedAt: Date.now(),
                   });
+                  
+                  Alert.alert("✅ Arrived", "You have arrived at the pickup location!");
                   console.log("✅ Marked as arrived");
                 } catch (error) {
                   console.error("Error marking arrived:", error);
@@ -1125,5 +1203,51 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  tripInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  tripLabel: {
+    fontSize: 14,
+    color: "#999",
+    fontWeight: "600",
+  },
+  tripValue: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "bold",
+  },
+  fareValue: {
+    fontSize: 18,
+    color: "#e53935",
+    fontWeight: "bold",
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  distanceWarningBox: {
+    backgroundColor: "#fff3e0",
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF9800",
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 8,
+  },
+  distanceWarningText: {
+    fontSize: 14,
+    color: "#e65100",
+    fontWeight: "500",
   },
 });

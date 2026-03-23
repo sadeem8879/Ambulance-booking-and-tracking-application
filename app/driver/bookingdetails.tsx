@@ -213,7 +213,10 @@ export default function BookingDetails() {
       <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
         <Text style={styles.header}>🚑 Booking Details</Text>
 
+        {/* 👤 PATIENT INFORMATION CARD */}
         <View style={styles.card}>
+          <Text style={styles.cardTitle}>👤 Patient Information</Text>
+          
           <Text style={styles.label}>Patient Name</Text>
           <Text style={styles.value}>{booking.patientName}</Text>
 
@@ -223,21 +226,89 @@ export default function BookingDetails() {
           <Text style={styles.label}>Phone Number</Text>
           <Text style={styles.value}>{booking.phoneNumber || "N/A"}</Text>
 
-          <Text style={styles.label}>Additional Notes</Text>
-          <Text style={styles.value}>{booking.additionalNotes || "N/A"}</Text>
-
-          <Text style={styles.label}>Pickup Location</Text>
-          <Text style={styles.value}>
-            {booking.pickupLocation 
-              ? `Lat: ${booking.pickupLocation.latitude.toFixed(4)}, Lon: ${booking.pickupLocation.longitude.toFixed(4)}`
-              : "N/A"
-            }
-          </Text>
-
           <Text style={styles.label}>Status</Text>
-          <Text style={styles.status}>{booking.status}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(booking.status) }]}>
+            <Text style={styles.statusText}>{booking.status.toUpperCase()}</Text>
+          </View>
         </View>
 
+        {/* 📍 LOCATION INFORMATION CARD */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>📍 Route Information</Text>
+          
+          <Text style={styles.label}>Pickup Location</Text>
+          <Text style={styles.value}>
+            {booking.pickupAddress || (booking.pickupLocation 
+              ? `${booking.pickupLocation.latitude.toFixed(4)}°, ${booking.pickupLocation.longitude.toFixed(4)}°`
+              : "N/A"
+            )}
+          </Text>
+          <Text style={styles.hint}>Tap "Open Map" to see exact location</Text>
+
+          {booking.dropLocation && (
+            <>
+              <Text style={styles.label}>Destination Location</Text>
+              <Text style={styles.value}>
+                {booking.destinationAddress || `${booking.dropLocation.latitude.toFixed(4)}°, ${booking.dropLocation.longitude.toFixed(4)}°`}
+              </Text>
+            </>
+          )}
+
+          {booking.destinationAddress && !booking.dropLocation && (
+            <>
+              <Text style={styles.label}>Destination Address</Text>
+              <Text style={styles.value}>{booking.destinationAddress}</Text>
+            </>
+          )}
+
+          {booking.distance != null && (
+            <>
+              <Text style={styles.label}>Distance from You</Text>
+              <Text style={styles.value}>{booking.distance.toFixed(2)} km</Text>
+            </>
+          )}
+
+          {booking.distanceKm != null && (
+            <>
+              <Text style={styles.label}>Pickup to Destination</Text>
+              <Text style={styles.value}>{booking.distanceKm.toFixed(2)} km</Text>
+            </>
+          )}
+        </View>
+
+        {/* 💰 FARE & ETA CARD */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>💰 Trip Details</Text>
+          
+          {booking.estimatedFare ? (
+            <>
+              <Text style={styles.label}>Estimated Fare</Text>
+              <Text style={styles.fare}>₹{booking.estimatedFare.toFixed(2)}</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Estimated Fare</Text>
+              <Text style={styles.value}>To be calculated</Text>
+            </>
+          )}
+
+          {booking.eta != null && (
+            <>
+              <Text style={styles.label}>Estimated Time to Pickup</Text>
+              <Text style={styles.value}>{booking.eta} minutes</Text>
+            </>
+          )}
+        </View>
+
+        {/* 💬 ADDITIONAL MESSAGES CARD */}
+        {booking.additionalNotes && (
+          <View style={[styles.card, styles.notesCard]}>
+            <Text style={styles.cardTitle}>💬 Additional Message</Text>
+            <Text style={styles.notesText}>{booking.additionalNotes}</Text>
+          </View>
+        )}
+
+        {/* ACTION BUTTONS */}
         <View style={styles.actions}>
           {/* Call */}
           <TouchableOpacity style={styles.callBtn} onPress={callPatient}>
@@ -328,24 +399,153 @@ export default function BookingDetails() {
 }
 
 // ==============================
+// HELPER FUNCTION - GET STATUS COLOR
+// ==============================
+const getStatusColor = (status: string) => {
+  switch(status) {
+    case "searching": return "#FFC107";
+    case "accepted": return "#2196F3";
+    case "arrived": return "#FF9800";
+    case "in-progress": return "#9C27B0";
+    case "completed": return "#4CAF50";
+    case "cancelled": return "#e53935";
+    default: return "#999";
+  }
+};
+
+// ==============================
 // STYLES
 // ==============================
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f5f6fa", padding: 20 },
-  header: { fontSize: 28, fontWeight: "bold", textAlign: "center", marginBottom: 25, color: "#e53935" },
-  card: { backgroundColor: "#fff", padding: 20, borderRadius: 15, marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.1, shadowOffset: { width: 0, height: 4 }, shadowRadius: 6, elevation: 5 },
-  label: { fontSize: 14, color: "#777", marginTop: 10 },
-  value: { fontSize: 18, fontWeight: "bold", marginTop: 2 },
-  status: { fontSize: 16, marginTop: 5, color: "#e53935", fontWeight: "bold" },
-  actions: { gap: 15 },
-  callBtn: { backgroundColor: "#4CAF50", padding: 15, borderRadius: 10, alignItems: "center" },
-  mapBtn: { backgroundColor: "#FF9800", padding: 15, borderRadius: 10, alignItems: "center" },
-  acceptBtn: { backgroundColor: "#2196F3", padding: 15, borderRadius: 10, alignItems: "center" },
-  arrivedBtn: { backgroundColor: "#FF9800", padding: 15, borderRadius: 10, alignItems: "center" },
-  startBtn: { backgroundColor: "#9C27B0", padding: 15, borderRadius: 10, alignItems: "center" },
-  completeBtn: { backgroundColor: "#e53935", padding: 15, borderRadius: 10, alignItems: "center" },
-  btnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#f5f6fa", 
+    padding: 20 
+  },
+  header: { 
+    fontSize: 28, 
+    fontWeight: "bold", 
+    textAlign: "center", 
+    marginBottom: 25, 
+    color: "#e53935" 
+  },
+  card: { 
+    backgroundColor: "#fff", 
+    padding: 20, 
+    borderRadius: 15, 
+    marginBottom: 20, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.1, 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowRadius: 6, 
+    elevation: 5 
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#333",
+    paddingBottom: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: "#f0f0f0"
+  },
+  notesCard: {
+    backgroundColor: "#fffbea",
+    borderLeftWidth: 4,
+    borderLeftColor: "#FFC107"
+  },
+  notesText: {
+    fontSize: 16,
+    color: "#555",
+    lineHeight: 24,
+    fontStyle: "italic"
+  },
+  label: { 
+    fontSize: 13, 
+    color: "#999", 
+    marginTop: 12,
+    fontWeight: "600"
+  },
+  value: { 
+    fontSize: 16, 
+    fontWeight: "bold", 
+    marginTop: 4,
+    color: "#333"
+  },
+  fare: {
+    fontSize: 28,
+    fontWeight: "bold",
+    marginTop: 4,
+    color: "#e53935"
+  },
+  hint: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    fontStyle: "italic"
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 4,
+    alignSelf: "flex-start",
+    marginBottom: 10
+  },
+  statusText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 12
+  },
+  actions: { 
+    gap: 12 
+  },
+  callBtn: { 
+    backgroundColor: "#4CAF50", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  mapBtn: { 
+    backgroundColor: "#FF9800", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  acceptBtn: { 
+    backgroundColor: "#2196F3", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  arrivedBtn: { 
+    backgroundColor: "#FF9800", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  startBtn: { 
+    backgroundColor: "#9C27B0", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  completeBtn: { 
+    backgroundColor: "#e53935", 
+    padding: 15, 
+    borderRadius: 10, 
+    alignItems: "center" 
+  },
+  btnText: { 
+    color: "#fff", 
+    fontWeight: "bold", 
+    fontSize: 16 
+  },
+  loader: { 
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
   
   // OTP Modal Styles
   otpOverlay: {

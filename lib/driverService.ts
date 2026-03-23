@@ -113,6 +113,23 @@ export const calculateDistance = (loc1: GeoLocation, loc2: GeoLocation): number 
 };
 
 // ==============================
+// CHECK IF DRIVER REACHED PICKUP (Within 100m threshold)
+// ==============================
+export const checkIfReachedPickup = (driverLocation: GeoLocation, pickupLocation: GeoLocation): boolean => {
+  const distanceKm = calculateDistance(driverLocation, pickupLocation);
+  const distanceMeters = distanceKm * 1000;
+  return distanceMeters <= 100; // 100 meters threshold for pickup arrival
+};
+
+// ==============================
+// GET DISTANCE IN METERS (For validation)
+// ==============================
+export const getDistanceInMeters = (loc1: GeoLocation, loc2: GeoLocation): number => {
+  const distanceKm = calculateDistance(loc1, loc2);
+  return distanceKm * 1000;
+};
+
+// ==============================
 // CHECK IF DRIVER REACHED DESTINATION (Within 50m)
 // ==============================
 export const checkIfReachedDestination = (driverLocation: GeoLocation, destinationLocation: GeoLocation): boolean => {
@@ -549,4 +566,64 @@ export const verifyOtpAndStartTrip = async (
     console.error("Verify OTP error:", err);
     throw err;
   }
+};
+
+// ==============================
+// OPEN GOOGLE MAPS NAVIGATION (ENHANCED)
+// ==============================
+/**
+ * Generate Google Maps navigation URL with directions
+ * @param origin - Starting point (driver location)
+ * @param destination - Destination (pickup or hospital)
+ * @returns Google Maps URL for navigation
+ */
+export const generateGoogleMapsNavigationUrl = (
+  origin: GeoLocation,
+  destination: GeoLocation
+): string => {
+  return `https://www.google.com/maps/dir/${origin.latitude},${origin.longitude}/${destination.latitude},${destination.longitude}?travelmode=driving`;
+};
+
+/**
+ * Generate Google Maps URL for directions between two addresses
+ * @param originAddress - Starting address
+ * @param destinationAddress - Destination address
+ * @returns Google Maps URL with directions
+ */
+export const generateGoogleMapsDirectionsUrl = (
+  originAddress: string,
+  destinationAddress: string
+): string => {
+  const encodedOrigin = encodeURIComponent(originAddress);
+  const encodedDest = encodeURIComponent(destinationAddress);
+  return `https://www.google.com/maps/dir/${encodedOrigin}/${encodedDest}?travelmode=driving`;
+};
+
+/**
+ * Check if driver is within safe distance to mark as arrived
+ * @param driverLocation - Current driver location
+ * @param pickupLocation - Patient pickup location
+ * @returns Object with status and distance in meters
+ */
+export const checkArrivalSafety = (
+  driverLocation: GeoLocation,
+  pickupLocation: GeoLocation
+): { canArrive: boolean; distanceMeters: number; message: string } => {
+  const distanceKm = calculateDistance(driverLocation, pickupLocation);
+  const distanceMeters = distanceKm * 1000;
+  const threshold = 100; // 100 meters
+
+  if (distanceMeters <= threshold) {
+    return {
+      canArrive: true,
+      distanceMeters,
+      message: `✅ You're within ${threshold}m. Safe to mark as arrived.`,
+    };
+  }
+
+  return {
+    canArrive: false,
+    distanceMeters,
+    message: `⚠️ You're ${Math.round(distanceMeters)}m away. Get within ${threshold}m to mark as arrived.`,
+  };
 };
