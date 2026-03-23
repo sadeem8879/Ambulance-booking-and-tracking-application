@@ -7,6 +7,7 @@ import {
     Alert,
     Linking,
     Modal,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -182,6 +183,9 @@ export default function Tracking() {
   const [loading, setLoading] = useState<boolean>(true);
   const [userOtpInput, setUserOtpInput] = useState<string>("");
 
+  // Live driver marker animation reference
+  const driverMarkerRef = useRef<any>(null);
+
   // Real-time location watch
   const locationWatchRef = useRef<Location.LocationSubscription | null>(null);
 
@@ -354,6 +358,15 @@ export default function Tracking() {
   }, [driverLocation, pickupLocation, destinationLocation]);
 
   // ==============================
+  // ANIMATE DRIVER MARKER AS IT MOVES
+  // ==============================
+  useEffect(() => {
+    if (driverLocation && driverMarkerRef.current?.animateMarkerToCoordinate) {
+      driverMarkerRef.current.animateMarkerToCoordinate(driverLocation, 1000);
+    }
+  }, [driverLocation]);
+
+  // ==============================
   // OPEN GOOGLE MAPS NAVIGATION
   // ==============================
   const handleOpenNavigation = () => {
@@ -369,6 +382,22 @@ export default function Tracking() {
       console.error("Navigation error:", error);
       Alert.alert("Error", "Could not open navigation");
     }
+  };
+
+  // ==============================
+  // CALL PATIENT
+  // ==============================
+  const handleCallPatient = () => {
+    if (!patientPhone) {
+      Alert.alert("Error", "Patient phone number not available");
+      return;
+    }
+
+    const telUrl = Platform.OS === "android" ? `tel:${patientPhone}` : `telprompt:${patientPhone}`;
+    Linking.openURL(telUrl).catch((error) => {
+      console.error("Call error:", error);
+      Alert.alert("Error", "Unable to place call");
+    });
   };
 
   // ==============================
@@ -511,7 +540,8 @@ export default function Tracking() {
       >
         {/* DRIVER MARKER */}
         {driverLocation && (
-          <Marker
+          <Marker.Animated
+            ref={driverMarkerRef}
             coordinate={driverLocation}
             title="🚑 Your Ambulance"
             pinColor="red"
@@ -625,6 +655,19 @@ export default function Tracking() {
             <Text style={styles.detailText}>
               ⏱️ Estimated Distance: {(distanceToPickup + distancePickupToDestination).toFixed(2)} km
             </Text>
+          </View>
+
+          {/* DRIVER ACTION PANEL */}
+          <View style={styles.actionPanel}>
+            <Text style={styles.sectionTitle}>🚨 Driver Tools</Text>
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity style={[styles.button, styles.callButton]} onPress={handleCallPatient}>
+                <Text style={styles.buttonText}>📞 Call Patient</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.navigateButton]} onPress={handleOpenNavigation}>
+                <Text style={styles.buttonText}>🗺️ Open Navigation</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* ACTION BUTTONS */}
@@ -825,6 +868,27 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 13,
     color: "#D84315",
+  },
+  actionPanel: {
+    marginTop: 10,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fafafa",
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  callButton: {
+    flex: 1,
+    backgroundColor: "#1E88E5",
+  },
+  navigateButton: {
+    flex: 1,
+    backgroundColor: "#43A047",
   },
   buttonContainer: {
     gap: 10,
