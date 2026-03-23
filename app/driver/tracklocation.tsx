@@ -3,18 +3,18 @@ import { useLocalSearchParams } from "expo-router";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import React, { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Linking,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { checkArrivalSafety, generateGoogleMapsNavigationUrl } from "../../lib/driverService";
@@ -182,6 +182,7 @@ export default function Tracking() {
   const [verifyingOtp, setVerifyingOtp] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [userOtpInput, setUserOtpInput] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
 
   // Live driver marker animation reference
   const driverMarkerRef = useRef<any>(null);
@@ -197,7 +198,11 @@ export default function Tracking() {
 
     const startLocationWatch = async () => {
       const hasPermission = await requestLocationPermission();
-      if (!hasPermission) return;
+      if (!hasPermission) {
+        setError("Location permission is required. Please grant location access and restart.");
+        setLoading(false);
+        return;
+      }
 
       try {
         locationWatchRef.current = await Location.watchPositionAsync(
@@ -227,6 +232,8 @@ export default function Tracking() {
         );
       } catch (error) {
         console.error("❌ Location watch error:", error);
+        setError("Failed to start location tracking. Please restart the app.");
+        setLoading(false);
       }
     };
 
@@ -253,13 +260,14 @@ export default function Tracking() {
     const unsubscribe = onSnapshot(
       bookingRef,
       (snapshot) => {
-        const data: any = snapshot.data();
-        if (!data) {
-          setLoading(false);
-          return;
-        }
+        try {
+          const data: any = snapshot.data();
+          if (!data) {
+            setLoading(false);
+            return;
+          }
 
-        // ✅ FETCH ALL DRIVER DASHBOARD FIELDS
+          // ✅ FETCH ALL DRIVER DASHBOARD FIELDS
         setPatientName(data.patientName || "");
         setPatientPhone(data.phoneNumber || "");
         setAdditionalNotes(data.additionalNotes || "");
@@ -295,9 +303,15 @@ export default function Tracking() {
         }
 
         setLoading(false);
+        } catch (error) {
+          console.error("❌ Booking snapshot error:", error);
+          setError("Failed to load booking data. Please retry.");
+          setLoading(false);
+        }
       },
       (error) => {
         console.error("❌ Booking listener error:", error);
+        setError("Booking listener error. Please check network connection.");
         setLoading(false);
       }
     );
@@ -340,6 +354,12 @@ export default function Tracking() {
   // ==============================
   // AUTO-FIT MAP WHEN ALL LOCATIONS AVAILABLE
   // ==============================
+  useEffect(() => {
+    if (error) {
+      Alert.alert("Error", error, [{ text: "OK", onPress: () => setError(null) }]);
+    }
+  }, [error]);
+
   useEffect(() => {
     if (!mapRef.current) return;
 

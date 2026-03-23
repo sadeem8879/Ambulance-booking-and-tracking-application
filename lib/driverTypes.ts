@@ -45,6 +45,7 @@ export interface Booking {
   phoneNumber: string;
   additionalNotes?: string;
   pickupLocation: GeoLocation;
+  pickupAddress?: string;
   dropLocation?: GeoLocation;
   destinationLocation?: GeoLocation;
   destinationAddress?: string;

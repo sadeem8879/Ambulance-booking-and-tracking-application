@@ -757,7 +757,16 @@ export default function DriverDashboard() {
               <Text style={styles.emergency}>Emergency: {item.emergency}</Text>
               <Text style={styles.phone}>Phone: {item.phoneNumber}</Text>
               <Text style={styles.location}>
-                Location: {hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown"}
+                Pickup: {item.pickupAddress || (hasLocation ? `${item.pickupLocation.latitude.toFixed(3)}, ${item.pickupLocation.longitude.toFixed(3)}` : "Unknown")}
+              </Text>
+              <Text style={styles.location}>
+                Destination: {item.destinationAddress || (item.destinationLocation ? `${item.destinationLocation.latitude.toFixed(3)}, ${item.destinationLocation.longitude.toFixed(3)}` : "Unknown")}
+              </Text>
+              {item.additionalNotes ? (
+                <Text style={styles.notes}>Notes: {item.additionalNotes}</Text>
+              ) : null}
+              <Text style={styles.fare}>
+                Fare: ₹{(item.estimatedFare ?? 0).toFixed(2)}
               </Text>
               <TouchableOpacity
                 style={[styles.acceptBtn, driver?.currentTripId && styles.disabledBtn]}
@@ -981,8 +990,19 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 5,
     color: "#555",
+  },
+  notes: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: "#e65100",
+  },
+  fare: {
+    fontSize: 14,
+    marginBottom: 10,
+    fontWeight: "bold",
+    color: "#2e7d32",
   },
   acceptBtn: {
     backgroundColor: "#4CAF50",
