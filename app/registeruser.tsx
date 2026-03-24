@@ -13,19 +13,43 @@ export default function RegisterUser() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const isValidEmail = (value: string) => {
+    // Basic email format and at least 3-char TLD (reject abc@gmail.co as requested)
+    return /^[^\s@]+@[^\s@]+\.[A-Za-z]{3,}$/.test(value);
+  };
+
+  const isValidPhone = (value: string) => {
+    return /^\d{10}$/.test(value);
+  };
+
   const register = async () => {
-    if (!name || !email || !phone || !password) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !password.trim()) {
       Alert.alert("Error", "Please fill all fields");
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      Alert.alert("Invalid Email", "Enter a valid email address (e.g. user@example.com)");
+      return;
+    }
+
+    if (!isValidPhone(phone.trim())) {
+      Alert.alert("Invalid Phone", "Enter a valid 10-digit phone number");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Weak Password", "Password must be at least 6 characters");
       return;
     }
 
     try {
       setLoading(true);
-      const res = await createUserWithEmailAndPassword(auth, email, password);
+      const res = await createUserWithEmailAndPassword(auth, email.trim(), password);
       await setDoc(doc(db, "users", res.user.uid), {
-        name,
-        email,
-        phone,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
         role: "user",
         createdAt: Date.now(),
       });
@@ -68,20 +92,27 @@ export default function RegisterUser() {
               placeholder="Email Address"
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => setEmail(value.trim().toLowerCase())}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 
           <View style={styles.inputContainer}>
             <Ionicons name="call" size={20} color="#666" style={styles.icon} />
             <TextInput
-              placeholder="Phone Number"
+              placeholder="Phone Number (10 digits)"
               style={styles.input}
               value={phone}
-              onChangeText={setPhone}
+              onChangeText={(value) => {
+                const cleaned = value.replace(/\D/g, "");
+                if (cleaned.length <= 10) {
+                  setPhone(cleaned);
+                }
+              }}
               keyboardType="phone-pad"
+              maxLength={10}
             />
           </View>
 

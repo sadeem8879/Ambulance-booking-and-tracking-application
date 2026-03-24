@@ -215,7 +215,10 @@ export default function Booking() {
       return;
     }
 
-    try {
+    if (phoneNumber.length !== 10) {
+      Alert.alert("Invalid Phone", "Please enter exactly 10 digits for phone number");
+      return;
+    }
       // Get user profile for contact info
       const userRef = doc(db, "users", auth.currentUser.uid);
       const userSnap = await getDoc(userRef);
@@ -335,13 +338,19 @@ export default function Booking() {
               ))}
             </Picker>
           </View>
-          <Text style={styles.label}>Phone Number *</Text>
+          <Text style={styles.label}>Phone Number * (10 digits)</Text>
           <TextInput
-            placeholder="Enter phone number (e.g., +1234567890)"
+            placeholder="Enter phone number (10 digits)"
             style={styles.input}
             value={phoneNumber}
-            onChangeText={setPhoneNumber}
+            onChangeText={(value) => {
+              const cleaned = value.replace(/\D/g, "");
+              if (cleaned.length <= 10) {
+                setPhoneNumber(cleaned);
+              }
+            }}
             keyboardType="phone-pad"
+            maxLength={10}
           />
           <Text style={styles.label}>Additional Notes</Text>
           <TextInput

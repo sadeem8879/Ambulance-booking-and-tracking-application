@@ -1,20 +1,19 @@
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity
 } from "react-native";
 
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../../services/firebase";
-import { doc, setDoc } from "firebase/firestore";
 import { router } from "expo-router";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../../services/firebase";
 
 export default function RegisterDriver() {
   const [name, setName] = useState("");
@@ -26,12 +25,38 @@ export default function RegisterDriver() {
   const [loading, setLoading] = useState(false);
 
   // ==============================
+  // VALIDATION HELPERS
+  // ==============================
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[A-Za-z]{3,}$/.test(value);
+  };
+
+  const isValidPhone = (value: string) => {
+    return /^\d{10}$/.test(value);
+  };
+
+  // ==============================
   // REGISTRATION FUNCTION
   // ==============================
   const register = async () => {
     // Validation
-    if (!name || !email || !phone || !ambulance || !license || !password) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !ambulance.trim() || !license.trim() || !password.trim()) {
       Alert.alert("All fields are required");
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      Alert.alert("Invalid Email", "Enter a valid email address (e.g. user@example.com)");
+      return;
+    }
+
+    if (!isValidPhone(phone.trim())) {
+      Alert.alert("Invalid Phone", "Enter a valid 10-digit phone number");
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Weak Password", "Password must be at least 6 characters");
       return;
     }
 
@@ -97,17 +122,24 @@ export default function RegisterDriver() {
           placeholder="Email"
           style={styles.input}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(value) => setEmail(value.trim().toLowerCase())}
           keyboardType="email-address"
           autoCapitalize="none"
+          autoCorrect={false}
         />
 
         <TextInput
-          placeholder="Phone Number"
+          placeholder="Phone Number (10 digits)"
           style={styles.input}
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={(value) => {
+            const cleaned = value.replace(/\D/g, "");
+            if (cleaned.length <= 10) {
+              setPhone(cleaned);
+            }
+          }}
           keyboardType="phone-pad"
+          maxLength={10}
         />
 
         <TextInput
