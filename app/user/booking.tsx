@@ -6,15 +6,15 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import MapView, { Marker } from "react-native-maps";
 import { GeoLocation } from "../../lib/driverTypes";
 import {
-    calculateCompleteFare,
-    validateFareInput
+  calculateCompleteFare,
+  validateFareInput
 } from "../../lib/fareCalculationService";
 import {
-    calculateDistance,
-    geocodeAddress,
-    getCurrentLocation as getDeviceCurrentLocation,
-    getETA,
-    reverseGeocodeLocation
+  calculateDistance,
+  geocodeAddress,
+  getCurrentLocation as getDeviceCurrentLocation,
+  getETA,
+  reverseGeocodeLocation
 } from "../../lib/locationService";
 import { auth, db } from "../../services/firebase";
 
@@ -219,6 +219,8 @@ export default function Booking() {
       Alert.alert("Invalid Phone", "Please enter exactly 10 digits for phone number");
       return;
     }
+
+    try {
       // Get user profile for contact info
       const userRef = doc(db, "users", auth.currentUser.uid);
       const userSnap = await getDoc(userRef);

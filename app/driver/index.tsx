@@ -824,21 +824,21 @@
 
 // });
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-  SafeAreaView
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
-import { useEffect, useState } from "react";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
 
-import { auth, db } from "../../services/firebase";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore";
+import { auth, db } from "../../services/firebase";
 
 // GPS Tracking functions
 import { startDriverTracking, stopDriverTracking } from "./tracklocation";
@@ -941,7 +941,7 @@ export default function DriverIndex() {
     try {
       const q = query(
         collection(db, "bookings"),
-        where("status", "==", "pending"),
+        where("status", "in", ["searching", "pending"]),
         where("assignedDriverId", "==", null)
       );
 

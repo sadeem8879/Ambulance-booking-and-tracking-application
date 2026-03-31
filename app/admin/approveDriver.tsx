@@ -1,41 +1,41 @@
 
-import { useEffect } from "react";
-import { View, ActivityIndicator } from "react-native";
-import { router } from "expo-router";
-import { auth } from "../../services/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import { getUserRole } from "../../services/getUserRole";
+  import { useEffect } from "react";
+  import { View, ActivityIndicator } from "react-native";
+  import { router } from "expo-router";
+  import { auth } from "../../services/firebase";
+  import { onAuthStateChanged } from "firebase/auth";
+  import { getUserRole } from "../../services/getUserRole";
 
-export default function Index() {
+  export default function Index() {
 
-  useEffect(()=>{
+    useEffect(()=>{
 
-    const unsub = onAuthStateChanged(auth, async(user)=>{
+      const unsub = onAuthStateChanged(auth, async(user)=>{
 
-      if(!user){
-        router.replace("/login");
-        return;
-      }
+        if(!user){
+          router.replace("/login");
+          return;
+        }
 
-      const role = await getUserRole(user.uid);
+        const role = await getUserRole(user.uid);
 
-      if(role==="driver"){
-        router.replace("/driver/dashboard");
-      }
-      else{
-        router.replace("/user/dashboard");
-      }
+        if(role==="driver"){
+          router.replace("/driver/dashboard");
+        }
+        else{
+          router.replace("/user/dashboard");
+        }
 
-    });
+      });
 
-    return unsub;
+      return unsub;
 
-  },[])
+    },[])
 
-  return(
-    <View style={{flex:1,justifyContent:"center"}}>
-      <ActivityIndicator size="large"/>
-    </View>
-  )
+    return(
+      <View style={{flex:1,justifyContent:"center"}}>
+        <ActivityIndicator size="large"/>
+      </View>
+    )
 
-}
+  }

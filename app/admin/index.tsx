@@ -10,7 +10,20 @@ export default function AdminPanel() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "drivers" | "bookings">("overview");
-  const [bookingFilter, setBookingFilter] = useState<"all" | "searching" | "accepted" | "arrived" | "in-progress" | "completed" | "cancelled">("all");
+  const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "searching" | "accepted" | "arrived" | "in-progress" | "completed" | "cancelled">("all");
+
+  // Normalize and unify booking status keys (searching = pending)
+  const normalizeBookingStatus = (status: string | undefined | null) => {
+    if (!status || typeof status !== "string") return "unknown";
+    const normalized = status.trim().toLowerCase();
+    if (normalized === "pending") return "searching";
+    if (normalized === "in progress" || normalized === "in_progress") return "in-progress";
+    return normalized;
+  };
+
+  // Ensure all bookings counts are based on unified status values
+  const getBookingsByStatus = (status: string) =>
+    allBookings.filter((booking) => normalizeBookingStatus(booking.status) === status);
 
   // ==============================
   // FETCH DRIVERS
@@ -28,12 +41,12 @@ export default function AdminPanel() {
   }, []);
 
   // ==============================
-  // FETCH PENDING BOOKINGS
+  // FETCH SEARCHING/PENDING BOOKINGS (for quick assignment helpers)
   // ==============================
   useEffect(() => {
     const q = query(
       collection(db, "bookings"),
-      where("status", "==", "searching")
+      where("status", "in", ["searching", "pending"])
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
@@ -99,16 +112,17 @@ export default function AdminPanel() {
   // ==============================
   const stats = {
     totalDrivers: drivers.length,
-    approvedDrivers: drivers.filter(d => d.approved).length,
-    onlineDrivers: drivers.filter(d => d.online).length,
-    pendingApprovals: drivers.filter(d => !d.approved).length,
+    approvedDrivers: drivers.filter(d => d.approved === true).length,
+    onlineDrivers: drivers.filter(d => d.online === true).length,
+    pendingApprovals: drivers.filter(d => d.approved !== true).length,
     totalBookings: allBookings.length,
-    searchingBookings: allBookings.filter(b => b.status === "searching").length,
-    acceptedBookings: allBookings.filter(b => b.status === "accepted").length,
-    arrivedBookings: allBookings.filter(b => b.status === "arrived").length,
-    inProgressBookings: allBookings.filter(b => b.status === "in-progress").length,
-    completedBookings: allBookings.filter(b => b.status === "completed").length,
-    cancelledBookings: allBookings.filter(b => b.status === "cancelled").length,
+    searchingBookings: getBookingsByStatus("searching").length,
+    pendingBookings: getBookingsByStatus("searching").length,
+    acceptedBookings: getBookingsByStatus("accepted").length,
+    arrivedBookings: getBookingsByStatus("arrived").length,
+    inProgressBookings: getBookingsByStatus("in-progress").length,
+    completedBookings: getBookingsByStatus("completed").length,
+    cancelledBookings: getBookingsByStatus("cancelled").length,
   };
 
   // ==============================
@@ -116,7 +130,9 @@ export default function AdminPanel() {
   // ==============================
   const getFilteredBookings = () => {
     if (bookingFilter === "all") return allBookings;
-    return allBookings.filter(b => b.status === bookingFilter);
+
+    const normalizedFilter = bookingFilter === "pending" ? "searching" : bookingFilter;
+    return allBookings.filter(b => normalizeBookingStatus(b.status) === normalizedFilter);
   };
 
   // ==============================
@@ -151,6 +167,11 @@ export default function AdminPanel() {
       {/* BOOKING STATS */}
       <Text style={styles.sectionTitle}>📊 Booking Statistics</Text>
       <View style={styles.statsGrid}>
+        <View style={[styles.statCard, { borderLeftColor: "#FFB300" }]}>
+          <MaterialIcons name="schedule" size={28} color="#FFB300" />
+          <Text style={styles.statNumber}>{stats.pendingBookings}</Text>
+          <Text style={styles.statLabel}>Pending/Search</Text>
+        </View>
         <View style={[styles.statCard, { borderLeftColor: "#FFC107" }]}>
           <MaterialIcons name="search" size={28} color="#FFC107" />
           <Text style={styles.statNumber}>{stats.searchingBookings}</Text>
@@ -263,7 +284,7 @@ export default function AdminPanel() {
       {/* FILTER BUTTONS */}
       <View style={styles.filterRow}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 16 }}>
-          {["all", "searching", "accepted", "arrived", "in-progress", "completed", "cancelled"].map(filter => (
+          {["all", "pending", "searching", "accepted", "arrived", "in-progress", "completed", "cancelled"].map(filter => (
             <TouchableOpacity
               key={filter}
               style={[
@@ -332,7 +353,8 @@ export default function AdminPanel() {
   // GET STATUS COLOR
   // ==============================
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const normalized = normalizeBookingStatus(status);
+    switch (normalized) {
       case "searching": return "#FFC107";
       case "accepted": return "#9C27B0";
       case "arrived": return "#00BCD4";
