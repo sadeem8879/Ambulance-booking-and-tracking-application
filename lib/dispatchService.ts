@@ -149,6 +149,33 @@ requestTime:Date.now()
 // SMART DISPATCH SYSTEM
 // =======================================
 
+export const assignNearestDriverToBooking = async(
+  bookingId:string,
+  pickupLocation:{ latitude:number; longitude:number }
+) => {
+  const drivers = await findNearestDrivers(
+    pickupLocation.latitude,
+    pickupLocation.longitude,
+    15
+  );
+
+  if (drivers.length === 0) {
+    console.log("No online drivers available for nearest assignment");
+    return null;
+  }
+
+  const nearest = drivers[0];
+  await updateDoc(doc(db, "bookings", bookingId), {
+    assignedDriverId: nearest.id,
+    assignedDriverName: nearest.name || nearest.driverName || null,
+    assignedDriverPhone: nearest.phone || null,
+    assignedDriverDistanceKm: nearest.distance,
+    assignedDriverAssignedAt: Date.now(),
+  });
+
+  return nearest;
+};
+
 export const dispatchAmbulance = async(
 
 bookingId:string,

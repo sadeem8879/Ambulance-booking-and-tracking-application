@@ -7,17 +7,23 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+      return isSignedIn() && (
+        (request.auth.token.email != null && request.auth.token.email == "youractualadminemail@gmail.com")
+        || (request.auth.token.role != null && request.auth.token.role == "admin")
+        || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin")
+      );
     }
 
     function isDriver() {
       return isSignedIn() &&
+        exists(/databases/$(database)/documents/drivers/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/drivers/$(request.auth.uid)).data.role == "driver";
     }
 
     function isUser() {
       return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "user";
     }
 
@@ -36,7 +42,8 @@ service cloud.firestore {
     }
 
     match /drivers/{driverId} {
-      allow read: if isSignedIn();
+      // Driver records are readable by the driver owner, admin, and authenticated users in tracking contexts.
+      allow read: if request.auth.uid == driverId || isAdmin() || isUser() || isDriver();
       allow create: if request.auth.uid == driverId;
       allow update: if request.auth.uid == driverId || isAdmin();
     }
@@ -53,11 +60,12 @@ service cloud.firestore {
         && request.resource.data.pickupLocation.longitude is number;
 
       allow read: if isAdmin()
-        || (isDriver() && resource.data.driverId == request.auth.uid)
-        || (resource.data.userId == request.auth.uid);
+        || (resource.data.driverId == request.auth.uid)
+        || (resource.data.userId == request.auth.uid)
+        || (isDriver() && resource.data.status == "searching");
 
       allow update: if isAdmin()
-        || (isDriver() && resource.data.driverId == request.auth.uid)
+        || (resource.data.driverId == request.auth.uid)
         || (resource.data.userId == request.auth.uid);
 
       allow delete: if isAdmin();
@@ -73,11 +81,18 @@ service cloud.firestore {
         && request.resource.data.pickupLocation.longitude is number;
 
       allow read: if isAdmin()
-        || (isDriver() && resource.data.driverId == request.auth.uid)
+        || (resource.data.driverId == request.auth.uid)
         || (resource.data.userId == request.auth.uid);
 
-      allow update: if isAdmin() || (isDriver() && resource.data.driverId == request.auth.uid);
+      allow update: if isAdmin() || (resource.data.driverId == request.auth.uid);
       allow delete: if isAdmin();
+    }
+
+    match /driverNotifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.driverId == request.auth.uid;
+      allow create: if isAdmin();
+      allow update: if isSignedIn() && resource.data.driverId == request.auth.uid;
+      allow delete: if isAdmin() || (resource.data.driverId == request.auth.uid);
     }
   }
 }

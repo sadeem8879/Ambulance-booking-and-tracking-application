@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { ADMIN_PASSWORD, ADMIN_USERNAME } from "../../constants/env";
+import { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_USERNAME } from "../../constants/env";
 import { auth } from "../../services/firebase";
 import { getUserRole } from "../../services/getUserRole";
 
@@ -15,12 +15,24 @@ export default function AdminLogin() {
     try {
       setLoading(true);
 
-      // Check for hardcoded admin credentials first
+      // Hardcoded admin access: try to login as configured email/password in Firebase.
       if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        // For hardcoded admin, we don't need Firebase auth
-        // Just navigate directly to admin panel
-        router.replace("/admin");
-        return;
+        try {
+          const result = await signInWithEmailAndPassword(auth, ADMIN_EMAIL, ADMIN_PASSWORD);
+          const role = await getUserRole(result.user.uid);
+          if (role === "admin") {
+            router.replace("/admin");
+            return;
+          }
+        } catch (authErr: any) {
+          console.error("Hardcoded admin quick-login failed", authErr);
+          Alert.alert(
+            "Admin Login Error",
+            "Could not sign in with admin credentials. Please ensure the admin email is created in Firebase Authentication."
+          );
+          setLoading(false);
+          return;
+        }
       }
 
       // If not hardcoded credentials, try Firebase authentication

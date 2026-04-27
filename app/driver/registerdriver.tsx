@@ -35,6 +35,16 @@ export default function RegisterDriver() {
     return /^\d{10}$/.test(value);
   };
 
+  const isValidAmbulanceNumber = (value: string) => {
+    // Accept typical vehicle registration formats with letters, digits, spaces and dashes
+    return /^[A-Za-z0-9\s-]{5,15}$/.test(value.trim());
+  };
+
+  const isValidLicenseNumber = (value: string) => {
+    // Accept alphanumeric license numbers without special symbols
+    return /^[A-Za-z0-9]{6,20}$/.test(value.trim());
+  };
+
   // ==============================
   // REGISTRATION FUNCTION
   // ==============================
@@ -55,6 +65,22 @@ export default function RegisterDriver() {
       return;
     }
 
+    if (!isValidAmbulanceNumber(ambulance)) {
+      Alert.alert(
+        "Invalid Ambulance Number",
+        "Enter a valid ambulance registration number using letters, numbers, spaces, or dashes."
+      );
+      return;
+    }
+
+    if (!isValidLicenseNumber(license)) {
+      Alert.alert(
+        "Invalid License Number",
+        "Enter a valid driver license number with 6-20 alphanumeric characters."
+      );
+      return;
+    }
+
     if (password.length < 6) {
       Alert.alert("Weak Password", "Password must be at least 6 characters");
       return;
@@ -64,7 +90,10 @@ export default function RegisterDriver() {
 
     try {
       // 1️⃣ Create Firebase Auth user
-      const res = await createUserWithEmailAndPassword(auth, email, password);
+      const res = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+
+      // Small delay to ensure auth is set up
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // 2️⃣ Save driver profile in Firestore
       await setDoc(doc(db, "drivers", res.user.uid), {

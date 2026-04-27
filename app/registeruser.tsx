@@ -45,7 +45,11 @@ export default function RegisterUser() {
 
     try {
       setLoading(true);
-      const res = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const res = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+      
+      // Small delay to ensure auth is set up
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await setDoc(doc(db, "users", res.user.uid), {
         name: name.trim(),
         email: email.trim(),
@@ -149,7 +153,7 @@ export default function RegisterUser() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#eef2ff",
   },
   scrollContainer: {
     flexGrow: 1,

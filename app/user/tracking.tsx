@@ -31,6 +31,25 @@ const [mapRegion, setMapRegion] = useState({
   longitudeDelta: 0.0421,
 });
 
+// Show empty state if no booking ID
+if (!bookingId) {
+  return (
+    <View style={styles.container}>
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyIcon}>📍</Text>
+        <Text style={styles.emptyTitle}>No Active Booking</Text>
+        <Text style={styles.emptyText}>You don't have any active bookings to track right now.</Text>
+        <TouchableOpacity 
+          style={styles.backBtn}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backBtnText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // Helper function to calculate distance between two points
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371;
@@ -100,6 +119,35 @@ useEffect(() => {
 
 return () => unsubBooking();
 }, [bookingId]);
+
+// ==============================
+// OPEN GOOGLE MAPS ROUTE
+// ==============================
+const handleOpenGoogleMaps = () => {
+  if (!driverLocation) {
+    Alert.alert("Location not available", "Driver location is not available yet. Please wait for the ambulance to be assigned.");
+    return;
+  }
+
+  if (!booking?.pickupLocation) {
+    Alert.alert("Missing pickup location", "Unable to open navigation without pickup location.");
+    return;
+  }
+
+  const destination =
+    booking.status === "in-progress" && booking.destinationLocation
+      ? booking.destinationLocation
+      : booking.pickupLocation;
+
+  const origin = `${driverLocation.latitude},${driverLocation.longitude}`;
+  const dest = `${destination.latitude},${destination.longitude}`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}&travelmode=driving`;
+
+  Linking.openURL(mapsUrl).catch((error) => {
+    console.error("Open Google Maps error:", error);
+    Alert.alert("Error", "Unable to open Google Maps.");
+  });
+};
 
 // ==============================
 // CANCEL BOOKING
@@ -253,7 +301,7 @@ return (
         {/* Pickup */}
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>From:</Text>
-          <Text style={styles.infoValue}>{booking.patientName}'s Location</Text>
+          <Text style={styles.infoValue}>{booking.patientName}&apos;s Location</Text>
         </View>
 
         {/* Destination */}
@@ -312,6 +360,12 @@ return (
             >
               <Text style={styles.callText}>📞 Call Driver</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.mapsButton} 
+              onPress={handleOpenGoogleMaps}
+            >
+              <Text style={styles.mapsText}>🗺️ Track Ambulance</Text>
+            </TouchableOpacity>
           </>
         )}
 
@@ -329,6 +383,12 @@ return (
               onPress={() => Linking.openURL(`tel:${booking.driverPhone}`)}
             >
               <Text style={styles.callText}>📞 Call Driver</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.mapsButton} 
+              onPress={handleOpenGoogleMaps}
+            >
+              <Text style={styles.mapsText}>🗺️ Track Ambulance</Text>
             </TouchableOpacity>
           </>
         )}
@@ -352,6 +412,12 @@ return (
               onPress={() => Linking.openURL(`tel:${booking.driverPhone}`)}
             >
               <Text style={styles.callText}>📞 Call Driver</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.mapsButton} 
+              onPress={handleOpenGoogleMaps}
+            >
+              <Text style={styles.mapsText}>🗺️ Track Ambulance</Text>
             </TouchableOpacity>
           </>
         )}
@@ -541,6 +607,23 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   callText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  mapsButton: {
+    backgroundColor: "#4285F4",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  mapsText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
@@ -780,6 +863,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: "#F57F17",
+  },
+  
+  // Empty State Styles
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  emptyIcon: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  backBtn: {
+    backgroundColor: "#e53935",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+  },
+  backBtnText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
 

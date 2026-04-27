@@ -1,9 +1,9 @@
 // 📁 app/driver/driverservice.ts
 
 import { addDoc, collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from "firebase/firestore";
-import { startDriverTracking, stopDriverTracking } from "../app/driver/tracklocation";
 import { auth, db } from "../services/firebase";
 import { Booking, DriverNotification, GeoLocation, Trip } from "./driverTypes";
+import { startDriverTracking, stopDriverTracking } from "./trackingService";
 
 // ==============================
 // GO ONLINE
@@ -286,7 +286,8 @@ export const acceptBooking = async (
       userPhone: booking.phoneNumber || 'N/A',
       patientName: booking.patientName,
       pickupLocation: booking.pickupLocation,
-      dropLocation: booking.dropLocation || null,
+      dropLocation: booking.dropLocation || booking.destinationLocation || null,
+      destinationLocation: booking.destinationLocation || null,
       status: "accepted",
       startedAt: null,
       completedAt: null,

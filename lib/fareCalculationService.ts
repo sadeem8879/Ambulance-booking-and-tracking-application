@@ -23,10 +23,10 @@ export interface FareConfig {
 // DEFAULT FARE CONFIGURATION
 // ==============================
 const DEFAULT_FARE_CONFIG: FareConfig = {
-  baseFare: 50, // ₹50
-  pricePerKm: 15, // ₹15 per km
-  pricePerMinute: 2, // ₹2 per minute waiting
-  emergencySurcharge: 100, // ₹100 emergency surcharge
+  baseFare: 75, // ₹75 (50% higher)
+  pricePerKm: 22.5, // ₹22.50 per km (50% higher)
+  pricePerMinute: 3, // ₹3 per minute waiting (50% higher)
+  emergencySurcharge: 150, // ₹150 emergency surcharge (50% higher)
 };
 
 // ==============================

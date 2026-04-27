@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    AppState,
     FlatList,
     Linking,
     Modal,
@@ -18,7 +19,6 @@ import {
 import MapView, { Marker, Polyline } from "react-native-maps";
 import {
     acceptBooking,
-    calculateDistance,
     completeTrip,
     getDirections,
     getDistanceInMeters,
@@ -52,6 +52,55 @@ export default function DriverDashboard() {
   const [otpModalDismissed, setOtpModalDismissed] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const appStateRef = useRef(AppState.currentState);
+  const offlineTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ==============================
+  // MONITOR APP STATE - MARK OFFLINE WHEN APP CLOSED
+  // ==============================
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+      // Clear timer on unmount
+      if (offlineTimerRef.current) {
+        clearTimeout(offlineTimerRef.current);
+      }
+    };
+  }, [online]);
+
+  const handleAppStateChange = async (state: any) => {
+    appStateRef.current = state;
+
+    if (state === 'background') {
+      // App went to background - set a timer to mark driver offline
+      console.log('📱 App backgrounded - will mark offline in 3 minutes');
+      
+      if (offlineTimerRef.current) {
+        clearTimeout(offlineTimerRef.current);
+      }
+
+      offlineTimerRef.current = setTimeout(async () => {
+        if (auth.currentUser && online) {
+          try {
+            console.log('⏱️ 3 minutes passed, marking driver offline');
+            await goOffline(auth.currentUser.uid);
+            setOnline(false);
+          } catch (error) {
+            console.error('Failed to mark offline:', error);
+          }
+        }
+      }, 3 * 60 * 1000); // 3 minutes
+    } else if (state === 'active') {
+      // App came back to foreground - cancel the offline timer
+      console.log('📱 App active - cancelling offline timer');
+      if (offlineTimerRef.current) {
+        clearTimeout(offlineTimerRef.current);
+        offlineTimerRef.current = null;
+      }
+    }
+  };
 
   // ==============================
   // AUTO-OPEN OTP MODAL WHEN ARRIVED
@@ -106,9 +155,7 @@ export default function DriverDashboard() {
   useEffect(() => {
     if (autoAccept && online && driverLocation && bookings.length > 0) {
       const nearestBooking = bookings[0]; // Already sorted by distance
-      if (calculateDistance(driverLocation, nearestBooking.pickupLocation) < 5) { // Within 5km
-        handleAcceptBooking(nearestBooking);
-      }
+      handleAcceptBooking(nearestBooking);
     }
   }, [autoAccept, online, driverLocation, bookings]);
 
@@ -443,8 +490,29 @@ export default function DriverDashboard() {
   };
 
   // ==============================
-  // LOGOUT
+  // OPEN GOOGLE MAPS WITH DIRECTIONS
   // ==============================
+  const openGoogleMapsDirections = () => {
+    const originLocation = driverLocation || currentTrip?.pickupLocation;
+    const destinationLocation =
+      currentTrip?.status === "in-progress"
+        ? currentTrip?.dropLocation || currentTrip?.destinationLocation
+        : currentTrip?.pickupLocation;
+
+    if (!originLocation || !currentTrip?.pickupLocation || !destinationLocation) {
+      Alert.alert("Error", "Pickup or destination location not available");
+      return;
+    }
+
+    const origin = `${originLocation.latitude},${originLocation.longitude}`;
+    const destination = `${destinationLocation.latitude},${destinationLocation.longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+    Linking.openURL(url).catch(() => {
+      // Fallback to web version if app is not installed
+      Linking.openURL(`https://www.google.com/maps/dir/${origin}/${destination}`);
+    });
+  };
   const handleLogout = async () => {
     if (!auth.currentUser) return;
 
@@ -654,6 +722,10 @@ export default function DriverDashboard() {
 
           <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${currentTrip.userPhone}`)}>
             <Text style={styles.callText}>📞 Call Patient</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.mapsBtn} onPress={openGoogleMapsDirections}>
+            <Text style={styles.mapsText}>🗺️ Open in Google Maps</Text>
           </TouchableOpacity>
           
           {currentTrip.status === "accepted" && (
@@ -1065,6 +1137,17 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   callText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  mapsBtn: {
+    backgroundColor: "#4285F4",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  mapsText: {
     color: "#fff",
     fontWeight: "bold",
   },

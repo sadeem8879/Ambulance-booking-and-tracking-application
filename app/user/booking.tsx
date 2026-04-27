@@ -4,17 +4,18 @@ import { addDoc, collection, doc, getDoc, Timestamp } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
+import { assignNearestDriverToBooking } from "../../lib/dispatchService";
 import { GeoLocation } from "../../lib/driverTypes";
 import {
-  calculateCompleteFare,
-  validateFareInput
+    calculateCompleteFare,
+    validateFareInput
 } from "../../lib/fareCalculationService";
 import {
-  calculateDistance,
-  geocodeAddress,
-  getCurrentLocation as getDeviceCurrentLocation,
-  getETA,
-  reverseGeocodeLocation
+    calculateDistance,
+    geocodeAddress,
+    getCurrentLocation as getDeviceCurrentLocation,
+    getETA,
+    reverseGeocodeLocation
 } from "../../lib/locationService";
 import { auth, db } from "../../services/firebase";
 
@@ -272,6 +273,8 @@ export default function Booking() {
         otp: generatedOTP,
         requestedAt: Timestamp.now(),
       });
+
+      await assignNearestDriverToBooking(bookingRef.id, pickupLocation);
 
       Alert.alert(
         "Success",

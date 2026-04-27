@@ -3,7 +3,7 @@ import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/f
 import { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Booking, Driver } from "../../lib/driverTypes";
-import { db } from "../../services/firebase";
+import { auth, db } from "../../services/firebase";
 
 export default function AdminPanel() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -11,6 +11,7 @@ export default function AdminPanel() {
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "drivers" | "bookings">("overview");
   const [bookingFilter, setBookingFilter] = useState<"all" | "pending" | "searching" | "accepted" | "arrived" | "in-progress" | "completed" | "cancelled">("all");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Normalize and unify booking status keys (searching = pending)
   const normalizeBookingStatus = (status: string | undefined | null) => {
@@ -29,12 +30,18 @@ export default function AdminPanel() {
   // FETCH DRIVERS
   // ==============================
   useEffect(() => {
+    if (!auth.currentUser) {
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = onSnapshot(collection(db, "drivers"), (snap) => {
       const driversList: Driver[] = snap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Driver[];
       setDrivers(driversList);
+      setIsLoading(false);
     });
 
     return unsubscribe;
@@ -44,6 +51,8 @@ export default function AdminPanel() {
   // FETCH SEARCHING/PENDING BOOKINGS (for quick assignment helpers)
   // ==============================
   useEffect(() => {
+    if (!auth.currentUser) return;
+
     const q = query(
       collection(db, "bookings"),
       where("status", "in", ["searching", "pending"])
@@ -64,6 +73,8 @@ export default function AdminPanel() {
   // FETCH ALL BOOKINGS
   // ==============================
   useEffect(() => {
+    if (!auth.currentUser) return;
+
     const unsubscribe = onSnapshot(collection(db, "bookings"), (snap) => {
       const bookingsList: Booking[] = snap.docs.map((doc) => ({
         id: doc.id,
@@ -368,6 +379,17 @@ export default function AdminPanel() {
   // ==============================
   // MAIN RENDER
   // ==============================
+  if (!auth.currentUser) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+          <Text style={styles.appTitle}>🔒 Admin Only</Text>
+          <Text style={styles.tabText}>Please log in to access the admin dashboard</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* HEADER */}

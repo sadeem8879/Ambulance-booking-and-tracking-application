@@ -6,9 +6,6 @@ import { ADMIN_EMAIL, ADMIN_PASSWORD } from "../constants/env";
 import { auth } from "../services/firebase";
 import { getUserRole } from "../services/getUserRole";
 
-// Helper function to add delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export default function Login() {
   const { role: roleParam } = useLocalSearchParams();
   const role = typeof roleParam === "string" ? roleParam : undefined;
@@ -31,53 +28,43 @@ export default function Login() {
         return;
       }
 
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      
-      // ✅ Refresh user token to ensure auth state is fully synced
-      // This fixes the issue where Firestore queries fail after logout/login
-      try {
-        await result.user.getIdToken(true); // Force token refresh
-      } catch (e) {
-        console.log("⚠️ Token refresh skipped:", e);
-      }
-      
-      // Small delay to ensure Firestore query is in sync with auth state
-      await delay(300);
+      const result = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
       
       const actualRole = await getUserRole(result.user.uid);
+      console.log("Login attempt - Email:", email, "Actual Role:", actualRole, "Role param:", roleParam);
+
+      // If no role specified in URL, auto-redirect based on actualRole
+      if (!isDriverFlow && !isUserFlow && !isAdminFlow) {
+        console.log("No role specified, auto-redirecting based on actualRole", actualRole);
+        if (actualRole === "driver") {
+          router.replace("/driver/dashboard");
+        } else if (actualRole === "admin") {
+          router.replace("/admin");
+        } else {
+          // Default to user for unknown cases so registered users can log in without selecting role.
+          router.replace("/user/dashboard");
+        }
+        setLoading(false);
+        return;
+      }
 
       // Strict role enforcement
       if (isDriverFlow) {
-        if (actualRole !== "driver") {
-          Alert.alert("Access Denied", "This login is for drivers only.");
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
+        // For drivers, just redirect - the dashboard will handle approval check
         router.replace("/driver/dashboard");
         setLoading(false);
         return;
       }
 
       if (isUserFlow) {
-        if (actualRole !== "user") {
-          Alert.alert("Access Denied", "This login is for users only.");
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
+        // For users, just redirect
         router.replace("/user/dashboard");
         setLoading(false);
         return;
       }
 
       if (isAdminFlow) {
-        if (actualRole !== "admin") {
-          Alert.alert("Access Denied", "This login is for admins only.");
-          await auth.signOut();
-          setLoading(false);
-          return;
-        }
+        // For admin, just redirect
         router.replace("/admin");
         setLoading(false);
         return;
@@ -110,57 +97,63 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>🚑 Ambulance App</Text>
-      <Text style={styles.subtitle}>
-        {isDriverFlow
-          ? "Driver login"
-          : isAdminFlow
-          ? "Admin login"
-          : "Login to continue"}
-      </Text>
+      <View style={styles.card}>
+        <Text style={styles.title}>🚑 Ambulance App</Text>
+        <Text style={styles.subtitle}>
+          {isDriverFlow
+            ? "Driver login"
+            : isAdminFlow
+            ? "Admin login"
+            : "Login to continue"}
+        </Text>
 
-      <TextInput
-        placeholder="Email"
-        style={styles.input}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Email"
+            style={styles.input}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        </View>
 
-      <TextInput
-        placeholder="Password"
-        style={styles.input}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
+        <View style={styles.inputContainer}>
+          <TextInput
+            placeholder="Password"
+            style={styles.input}
+            secureTextEntry
+            onChangeText={setPassword}
+          />
+        </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
-        <Text style={styles.btnText}>{loading ? "Logging in..." : "Login"}</Text>
-      </TouchableOpacity>
-
-      {isAdminFlow ? (
-        <TouchableOpacity onPress={() => router.push("/")}> 
-          <Text style={styles.link}>Back to role selection</Text>
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.btnText}>{loading ? "Logging in..." : "Login"}</Text>
         </TouchableOpacity>
-      ) : (
-        <>
-          {(!role || isUserFlow) && (
-            <TouchableOpacity onPress={() => router.push("/registeruser")}>
-              <Text style={styles.link}>Create User Account</Text>
-            </TouchableOpacity>
-          )}
 
-          {(!role || isDriverFlow) && (
-            <TouchableOpacity onPress={() => router.push("/driver/registerdriver")}> 
-              <Text style={styles.link}>Register Ambulance Provider</Text>
-            </TouchableOpacity>
-          )}
-
-          <TouchableOpacity onPress={() => router.push("/")}> 
+        {isAdminFlow ? (
+          <TouchableOpacity onPress={() => router.push("/")}>
             <Text style={styles.link}>Back to role selection</Text>
           </TouchableOpacity>
-        </>
-      )}
+        ) : (
+          <>
+            {(!role || isUserFlow) && (
+              <TouchableOpacity onPress={() => router.push("/registeruser")}> 
+                <Text style={styles.link}>Create User Account</Text>
+              </TouchableOpacity>
+            )}
+
+            {(!role || isDriverFlow) && (
+              <TouchableOpacity onPress={() => router.push("/driver/registerdriver")}> 
+                <Text style={styles.link}>Register Ambulance Provider</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity onPress={() => router.push("/")}>
+              <Text style={styles.link}>Back to role selection</Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
     </View>
   );
 }
@@ -168,50 +161,62 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f2f5ff",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
     padding: 20,
   },
+  card: {
+    backgroundColor: "#fff",
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 18,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: "bold",
+    fontSize: 30,
+    fontWeight: "900",
     marginBottom: 8,
     color: "#e53935",
+    textAlign: "center",
   },
   subtitle: {
-    fontSize: 18,
-    marginBottom: 30,
+    fontSize: 16,
+    marginBottom: 24,
     color: "#666",
     textAlign: "center",
   },
-  input: {
-    width: "90%",
-    borderWidth: 1,
-    borderColor: "#ddd",
-    padding: 15,
-    marginBottom: 20,
+  inputContainer: {
+    backgroundColor: "#fafbff",
     borderRadius: 12,
-    backgroundColor: "#fff",
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#e6e9ff",
+  },
+  input: {
+    width: "100%",
+    height: 50,
+    paddingHorizontal: 14,
     fontSize: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    color: "#333",
   },
   button: {
     backgroundColor: "#e53935",
-    padding: 16,
-    borderRadius: 12,
-    width: "90%",
+    paddingVertical: 14,
+    borderRadius: 14,
+    width: "100%",
     alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    marginTop: 4,
+    marginBottom: 18,
+    shadowColor: "#e539351a",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   btnText: {
     color: "#fff",
@@ -219,9 +224,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   link: {
-    color: "#2196f3",
-    fontSize: 16,
+    color: "#2979ff",
+    fontSize: 15,
     textDecorationLine: "underline",
-    marginBottom: 10,
+    marginTop: 8,
+    textAlign: "center",
   },
 });

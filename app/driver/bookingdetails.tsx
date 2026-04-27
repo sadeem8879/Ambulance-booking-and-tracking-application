@@ -243,7 +243,7 @@ export default function BookingDetails() {
               : "N/A"
             )}
           </Text>
-          <Text style={styles.hint}>Tap "Open Map" to see exact location</Text>
+          <Text style={styles.hint}>Tap &quot;Open Map&quot; to see exact location</Text>
 
           {booking.dropLocation && (
             <>

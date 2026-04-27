@@ -841,7 +841,7 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "fireb
 import { auth, db } from "../../services/firebase";
 
 // GPS Tracking functions
-import { startDriverTracking, stopDriverTracking } from "./tracklocation";
+import { startDriverTracking, stopDriverTracking } from "../../lib/trackingService";
 
 export default function DriverIndex() {
 
